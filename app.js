@@ -20,6 +20,7 @@ const provider = new GoogleAuthProvider();
 let currentRoom = null;
 let isHost = false;
 let lastDrawnLength = 0; // Per tracciare se è arrivato un numero nuovo
+let lastWinnerKey = "";
 
 const PRIZE_ORDER = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola'];
 
@@ -210,48 +211,51 @@ async function handlePrizes(data) {
     const prizeGoal = PRIZE_ORDER[idx];
     const winners = data.winners[prizeGoal] || [];
     
-    // LOGICA VINCITA UTENTE
+    // 1. Logica vincita utente locale
     let won = false;
     document.querySelectorAll('.tombola-card').forEach(c => {
         if(checkCardWin(c, prizeGoal)) won = true;
     });
 
-    // LOGICA VINCITA TABELLONE (HOST)
+    // 2. Logica vincita tabellone (Host)
     if(isHost) {
         if(checkBoardWins(data.drawn || [], prizeGoal) && !winners.includes("TABELLONE")) {
             await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion("TABELLONE") });
         }
     }
 
+    // 3. Registra vincitore utente se non già presente
     if(won && !winners.includes(auth.currentUser.displayName)) {
         await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion(auth.currentUser.displayName) });
     }
 
-    // UI ANNUNCIO VINCITORE
+    // 4. UI Annuncio e Overlay
     const pAnnouncer = document.getElementById('prize-announcer');
     if (winners.length > 0) {
         pAnnouncer.innerHTML = `Vincitori: ${winners.join(', ')}`;
         pAnnouncer.style.background = "#10b981";
         pAnnouncer.style.color = "black";
         
-        // MOSTRA OVERLAY VITTORIA (Solo se è la prima volta che lo vediamo per questo premio)
+        // Attiva l'overlay (la funzione internamente filtrerà i duplicati)
         showWinnerOverlay(prizeGoal, winners);
 
+        // Gestione passaggio premio successivo (Solo Host)
         if(isHost && idx < 4) {
              setTimeout(() => {
                  getDoc(doc(db, "games", currentRoom)).then(snapCheck => {
+                     // Passa al premio successivo solo se siamo ancora fermi allo stesso indice
                      if(snapCheck.data().currentPrizeIndex === idx) {
                          updateDoc(doc(db, "games", currentRoom), { currentPrizeIndex: idx + 1 });
                      }
                  });
-             }, 8000); // 8 secondi per festeggiare
+             }, 8000); // 8 secondi di attesa prima del prossimo premio
         }
     } else {
+        // Nessun vincitore ancora: mostra il premio in palio
         pAnnouncer.innerHTML = `Si gioca per: <b>${prizeGoal.toUpperCase()}</b>`;
         pAnnouncer.style.background = "";
         pAnnouncer.style.color = "";
-        // Nascondi overlay se non c'è vincitore (o reset nuovo premio)
-        document.getElementById('winner-overlay').classList.add('hidden');
+        // Nota: Non nascondiamo l'overlay qui per evitare il "flash" durante i ricaricamenti
     }
 }
 
@@ -259,25 +263,31 @@ async function handlePrizes(data) {
 let lastShownPrize = "";
 // CORREZIONE ANIMAZIONE: Rimosso il flash, migliorata la persistenza
 function showWinnerOverlay(prize, winnersList) {
-    const uniqueKey = prize + winnersList.join(""); 
-    if(lastShownPrize === uniqueKey) return;
-    lastShownPrize = uniqueKey;
+    // Creiamo una chiave unica basata sul premio e sul numero di vincitori
+    const currentKey = `${prize}-${winnersList.length}`;
+    
+    // Se la chiave è uguale alla precedente, l'animazione è già in corso o è già stata mostrata
+    if(lastWinnerKey === currentKey) return;
+    lastWinnerKey = currentKey;
 
     const overlay = document.getElementById('winner-overlay');
-    const title = document.getElementById('win-title');
-    const names = document.getElementById('win-names');
+    const winTitle = document.getElementById('win-title');
+    const winNames = document.getElementById('win-names');
 
-    title.innerText = prize.toUpperCase() + "!";
-    names.innerText = winnersList.join(", ");
+    // Imposta i testi
+    winTitle.innerText = prize.toUpperCase() + "!";
+    winNames.innerText = winnersList.join(", ");
     
+    // Mostra l'overlay rimuovendo la classe hidden
     overlay.classList.remove('hidden');
-    overlay.style.display = "flex"; // Forza la visualizzazione flex
+    
+    // Se hai modificato il CSS come suggerito prima, 
+    // l'animazione popUp partirà in automatico.
 
-    // Il timer di 8 secondi permette di godersi l'animazione durante il cambio premio dell'host
+    // Nascondi automaticamente dopo 7 secondi per pulire lo schermo
     setTimeout(() => {
         overlay.classList.add('hidden');
-        overlay.style.display = "none";
-    }, 8000);
+    }, 7000);
 }
 
 // --- HELPER DI VINCITA (CheckBoardWins & CheckCardWin uguali a prima) ---
