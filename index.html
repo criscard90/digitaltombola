@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tombola PWA Pro</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
 </head>
 <body>
     <div id="app">
@@ -24,29 +23,25 @@
         </section>
 
         <section id="screen-config" class="hidden">
-            <h2>Configurazione Stanza <span id="conf-room-id"></span></h2>
-            <div class="config-box">
-                <label>Prezzo singola cartella (€)</label>
-                <input type="number" id="cfg-price" value="1" step="0.5">
-            </div>
+            <h2>Stanza <span id="conf-room-id"></span></h2>
+            <input type="number" id="cfg-price" value="1" step="0.5">
             <div id="prize-summary">
-                <p>Cartelle prenotate: <b id="total-cards-count">0</b></p>
-                <p>Montepremi Totale: <b id="total-pot">0</b>€</p>
+                <p>Cartelle: <b id="total-cards-count">0</b> | Totale: <b id="total-pot">0</b>€</p>
                 <div class="prize-grid">
-                    <span>Ambo: <i id="p-ambo">0</i>€</span>
-                    <span>Terna: <i id="p-terna">0</i>€</span>
-                    <span>Quaterna: <i id="p-quat">0</i>€</span>
-                    <span>Cinquina: <i id="p-cinq">0</i>€</span>
-                    <span>Tombola: <i id="p-tomb">0</i>€</span>
+                    <span>Ambo (10%): <i id="p-ambo">0</i>€</span>
+                    <span>Terna (15%): <i id="p-terna">0</i>€</span>
+                    <span>Quaterna (20%): <i id="p-quat">0</i>€</span>
+                    <span>Cinquina (25%): <i id="p-cinq">0</i>€</span>
+                    <span>Tombola (30%): <i id="p-tomb">0</i>€</span>
                 </div>
             </div>
-            <button id="btn-start" class="btn-main">CONGELA PREZZI E INIZIA</button>
+            <button id="btn-start" class="btn-main">CONGELA E INIZIA</button>
         </section>
 
         <section id="screen-game" class="hidden">
             <div class="game-header">
-                <div id="info-prizes-live">Palio: <b id="current-pot-display">0</b>€</div>
-                <span>Codice: <b id="display-room"></b></span>
+                <div id="prize-announcer">In attesa dell'Ambo...</div>
+                <span>Stanza: <b id="display-room"></b></span>
             </div>
             
             <div id="last-number">--</div>
@@ -60,12 +55,10 @@
             </div>
 
             <div id="board-container" class="hidden">
-                <h4>Tabellone</h4>
                 <div id="main-board"></div>
             </div>
         </section>
     </div>
-
     <script type="module" src="app.js"></script>
 </body>
 </html>

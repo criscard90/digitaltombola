@@ -19,39 +19,38 @@ const provider = new GoogleAuthProvider();
 
 let currentRoom = null;
 let isHost = false;
+const PRIZE_NAMES = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola'];
 
-// --- GENERAZIONE CARTELLE ---
-function createTombolaCard() {
-    let card = Array(27).fill(null);
-    for(let r=0; r<3; r++) {
-        let rowPos = [];
-        while(rowPos.length < 5) {
-            let p = Math.floor(Math.random() * 9);
-            if(!rowPos.includes(p)) rowPos.push(p);
-        }
-        rowPos.forEach(p => {
-            let col = p;
-            let min = col * 10 + 1;
-            let max = col * 10 + 10;
-            card[r * 9 + p] = Math.floor(Math.random() * (max - min + 1)) + min;
-        });
-    }
-    return card;
+// --- LOGICA VITTORIE ---
+function checkCardWins(cardEl) {
+    const rows = [
+        Array.from(cardEl.querySelectorAll('.cell-card')).slice(0, 9),
+        Array.from(cardEl.querySelectorAll('.cell-card')).slice(9, 18),
+        Array.from(cardEl.querySelectorAll('.cell-card')).slice(18, 27)
+    ];
+    let maxRowHits = 0;
+    let totalHits = 0;
+    rows.forEach(row => {
+        let hits = row.filter(c => c.classList.contains('hit')).length;
+        if(hits > maxRowHits) maxRowHits = hits;
+        totalHits += hits;
+    });
+    if(totalHits === 15) return 'tombola';
+    if(maxRowHits === 5) return 'cinquina';
+    if(maxRowHits === 4) return 'quaterna';
+    if(maxRowHits === 3) return 'terna';
+    if(maxRowHits === 2) return 'ambo';
+    return null;
 }
 
-const showScreen = (id) => {
-    document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
-    document.getElementById(id).classList.remove('hidden');
-};
-
-// --- AUTH ---
-document.getElementById('btn-login').onclick = () => signInWithPopup(auth, provider);
+// --- CORE ---
 onAuthStateChanged(auth, (user) => {
     if (user) { document.getElementById('user-name').innerText = user.displayName; showScreen('screen-menu'); }
-    else { showScreen('screen-auth'); }
+    else showScreen('screen-auth');
 });
 
-// --- LOGICA HOST ---
+document.getElementById('btn-login').onclick = () => signInWithPopup(auth, provider);
+
 document.getElementById('btn-create').onclick = async () => {
     currentRoom = Math.floor(1000 + Math.random() * 9000).toString();
     isHost = true;
@@ -60,111 +59,130 @@ document.getElementById('btn-create').onclick = async () => {
         drawn: [],
         totalCards: 0,
         price: 1,
-        status: "config"
+        status: "config",
+        winners: { ambo: [], terna: [], quaterna: [], cinquina: [], tombola: [] },
+        currentPrizeIndex: 0
     });
-    document.getElementById('conf-room-id').innerText = currentRoom;
     showScreen('screen-config');
-    
-    // Aggiornamento live premi durante configurazione
-    onSnapshot(doc(db, "games", currentRoom), (snap) => {
-        const data = snap.data();
-        if(!data || data.status !== "config") return;
-        updatePrizeDisplay(data.totalCards, document.getElementById('cfg-price').value);
-    });
+    document.getElementById('conf-room-id').innerText = currentRoom;
+    initRealtimeConfig();
 };
 
-function updatePrizeDisplay(count, price) {
-    const total = count * price;
-    document.getElementById('total-cards-count').innerText = count;
-    document.getElementById('total-pot').innerText = total.toFixed(2);
-    document.getElementById('p-ambo').innerText = (total * 0.1).toFixed(2);
-    document.getElementById('p-terna').innerText = (total * 0.15).toFixed(2);
-    document.getElementById('p-quat').innerText = (total * 0.2).toFixed(2);
-    document.getElementById('p-cinq').innerText = (total * 0.25).toFixed(2);
-    document.getElementById('p-tomb').innerText = (total * 0.3).toFixed(2);
-}
-
-document.getElementById('btn-start').onclick = async () => {
-    const finalPrice = parseFloat(document.getElementById('cfg-price').value);
-    await updateDoc(doc(db, "games", currentRoom), {
-        price: finalPrice,
-        status: "playing"
-    });
-    document.getElementById('display-room').innerText = currentRoom;
-    document.getElementById('host-controls').classList.remove('hidden');
-    document.getElementById('board-container').classList.remove('hidden');
-    initBoard();
-    showScreen('screen-game');
-    listenToGame();
-};
-
-// --- LOGICA GIOCATORE ---
 document.getElementById('btn-join').onclick = async () => {
     const rID = document.getElementById('input-room').value;
     const qty = parseInt(document.getElementById('input-qty').value) || 1;
     const snap = await getDoc(doc(db, "games", rID));
-    
     if (snap.exists()) {
         currentRoom = rID;
         await updateDoc(doc(db, "games", rID), { totalCards: increment(qty) });
-        
-        // Genera cartelle visive
-        const container = document.getElementById('my-cards-container');
-        container.innerHTML = '';
-        for(let i=0; i<qty; i++) {
-            const cardData = createTombolaCard();
-            const cardEl = document.createElement('div');
-            cardEl.className = 'tombola-card';
-            cardData.forEach(num => {
-                const cell = document.createElement('div');
-                cell.className = num ? `cell-card n-${num}` : 'cell-card empty';
-                cell.innerText = num || '';
-                cardEl.appendChild(cell);
-            });
-            container.appendChild(cardEl);
-        }
-        document.getElementById('display-room').innerText = rID;
+        renderPlayerCards(qty);
         showScreen('screen-game');
         listenToGame();
-    } else { alert("Stanza non valida"); }
+    }
 };
 
-// --- CORE GIOCO ---
-function initBoard() {
-    const b = document.getElementById('main-board');
-    b.innerHTML = '';
-    for(let i=1; i<=90; i++) {
-        const d = document.createElement('div');
-        d.className = 'b-cell'; d.id = `b-${i}`; d.innerText = i;
-        b.appendChild(d);
-    }
-}
+document.getElementById('btn-start').onclick = async () => {
+    await updateDoc(doc(db, "games", currentRoom), { 
+        price: parseFloat(document.getElementById('cfg-price').value),
+        status: "playing" 
+    });
+    showScreen('screen-game');
+    document.getElementById('host-controls').classList.remove('hidden');
+    document.getElementById('board-container').classList.remove('hidden');
+    initBoard();
+    listenToGame();
+};
 
 document.getElementById('btn-extract').onclick = async () => {
     const snap = await getDoc(doc(db, "games", currentRoom));
-    const drawn = snap.data().drawn || [];
-    if(drawn.length >= 90) return;
+    const drawn = snap.data().drawn;
     let n; do { n = Math.floor(Math.random() * 90) + 1; } while(drawn.includes(n));
     await updateDoc(doc(db, "games", currentRoom), { drawn: arrayUnion(n) });
 };
 
 function listenToGame() {
-    onSnapshot(doc(db, "games", currentRoom), (snap) => {
+    onSnapshot(doc(db, "games", currentRoom), async (snap) => {
         const data = snap.data();
         if(!data) return;
-        
-        // Calcola montepremi con prezzo CONGELATO
-        const totalPot = data.totalCards * data.price;
-        document.getElementById('current-pot-display').innerText = totalPot.toFixed(2);
 
-        data.drawn.forEach(num => {
-            document.querySelectorAll(`.n-${num}`).forEach(el => el.classList.add('hit'));
-            const bCell = document.getElementById(`b-${num}`);
+        // Autotap
+        data.drawn.forEach(n => {
+            document.querySelectorAll(`.n-${n}`).forEach(el => el.classList.add('hit'));
+            const bCell = document.getElementById(`b-${n}`);
             if(bCell) bCell.classList.add('drawn');
         });
+        if(data.drawn.length > 0) document.getElementById('last-number').innerText = data.drawn[data.drawn.length-1];
 
-        if(data.drawn.length > 0) {
-            document.getElementById('last-number').innerText = data.drawn[data.drawn.length-1];
+        // Verifica vincitori
+        const currentPrizeGoal = PRIZE_NAMES[data.currentPrizeIndex];
+        let iHaveWon = false;
+        document.querySelectorAll('.tombola-card').forEach(card => {
+            if(checkCardWins(card) === currentPrizeGoal) iHaveWon = true;
+        });
+
+        if(iHaveWon && !data.winners[currentPrizeGoal].includes(auth.currentUser.displayName)) {
+            await updateDoc(doc(db, "games", currentRoom), {
+                [`winners.${currentPrizeGoal}`]: arrayUnion(auth.currentUser.displayName)
+            });
         }
+
+        // Display vincitori e progressione premio
+        const winnersList = data.winners[currentPrizeGoal];
+        if(winnersList.length > 0) {
+            document.getElementById('prize-announcer').innerHTML = 
+                `Vincitori ${currentPrizeGoal.toUpperCase()}: <span class="win-tag">${winnersList.join(', ')}</span>`;
+            
+            // Se l'host vede che ci sono vincitori, dopo 3 secondi può passare al premio successivo (o farlo in automatico)
+            if(isHost && data.currentPrizeIndex < 4) {
+                 setTimeout(async () => {
+                    const freshSnap = await getDoc(doc(db, "games", currentRoom));
+                    if(freshSnap.data().currentPrizeIndex === data.currentPrizeIndex) {
+                        await updateDoc(doc(db, "games", currentRoom), { currentPrizeIndex: increment(1) });
+                    }
+                 }, 4000);
+            }
+        } else {
+            document.getElementById('prize-announcer').innerText = `In attesa di: ${currentPrizeGoal.toUpperCase()}`;
+        }
+    });
+}
+
+// --- HELPERS ---
+function showScreen(id) { document.querySelectorAll('section').forEach(s => s.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
+
+function initBoard() {
+    const b = document.getElementById('main-board'); b.innerHTML = '';
+    for(let i=1; i<=90; i++){ const d = document.createElement('div'); d.className='b-cell'; d.id=`b-${i}`; d.innerText=i; b.appendChild(d); }
+}
+
+function renderPlayerCards(qty) {
+    const container = document.getElementById('my-cards-container');
+    container.innerHTML = '';
+    for(let i=0; i<qty; i++) {
+        const cardData = Array(27).fill(null);
+        for(let r=0; r<3; r++){
+            let pos = []; while(pos.length<5){ let p=Math.floor(Math.random()*9); if(!pos.includes(p)) pos.push(p); }
+            pos.forEach(p => cardData[r*9+p] = (p*10)+Math.floor(Math.random()*10)+1);
+        }
+        const cardEl = document.createElement('div'); cardEl.className = 'tombola-card';
+        cardData.forEach(n => {
+            const c = document.createElement('div'); c.className = n ? `cell-card n-${n}` : 'cell-card empty';
+            c.innerText = n || ''; cardEl.appendChild(c);
+        });
+        container.appendChild(cardEl);
+    }
+}
+
+function initRealtimeConfig() {
+    onSnapshot(doc(db, "games", currentRoom), (snap) => {
+        const data = snap.data(); if(!data || data.status !== "config") return;
+        const p = parseFloat(document.getElementById('cfg-price').value);
+        const t = data.totalCards * p;
+        document.getElementById('total-cards-count').innerText = data.totalCards;
+        document.getElementById('total-pot').innerText = t.toFixed(2);
+        ['ambo', 'terna', 'quat', 'cinq', 'tomb'].forEach((id, i) => {
+            const perc = [0.1, 0.15, 0.2, 0.25, 0.3][i];
+            document.getElementById(`p-${id}`).innerText = (t * perc).toFixed(2);
+        });
     });
 }
