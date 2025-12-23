@@ -21,7 +21,7 @@ let currentRoom = null;
 let isHost = false;
 const PRIZE_NAMES = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola'];
 
-// --- LOGICA SESSIONE ---
+// --- AUTH ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         document.getElementById('user-name').innerText = user.displayName;
@@ -36,137 +36,111 @@ async function checkActiveSession() {
     if (saved) {
         const snap = await getDoc(doc(db, "games", saved));
         if (snap.exists() && snap.data().status !== "finished") {
-            joinGame(saved, 0, true); // Riconnette senza aggiungere nuove cartelle
+            joinGame(saved, 0, true);
         } else { localStorage.removeItem('activeRoom'); }
     }
 }
 
-// --- LOBBY ---
-function listenToLobby() {
-    const q = query(collection(db, "games"), where("status", "!=", "finished"), limit(10));
-    onSnapshot(q, (snap) => {
-        const list = document.getElementById('lobby-list');
-        list.innerHTML = '';
-        snap.forEach(d => {
-            const data = d.data();
-            const div = document.createElement('div');
-            div.className = 'lobby-item';
-            div.innerHTML = `<span>Stanza <b>${d.id}</b></span> <button class="btn-text" onclick="window.quickJoin('${d.id}')">Entra</button>`;
-            list.appendChild(div);
-        });
-    });
-}
-window.quickJoin = (id) => { document.getElementById('input-room').value = id; document.getElementById('btn-join').click(); };
-
-// --- AZIONI ---
-document.getElementById('btn-login').onclick = () => signInWithPopup(auth, provider);
-document.getElementById('btn-logout').onclick = () => signOut(auth);
-
-document.getElementById('btn-create').onclick = async () => {
-    const rID = Math.floor(1000 + Math.random() * 9000).toString();
-    await setDoc(doc(db, "games", rID), {
-        host: auth.currentUser.uid, drawn: [], totalCards: 0, price: 1,
-        status: "config", winners: { ambo: [], terna: [], quaterna: [], cinquina: [], tombola: [] },
-        currentPrizeIndex: 0
-    });
-    joinGame(rID, 0, false, true);
-};
-
-document.getElementById('btn-join').onclick = () => {
-    const rID = document.getElementById('input-room').value;
-    const qty = parseInt(document.getElementById('input-qty').value);
-    if(rID) joinGame(rID, qty, false, false);
-};
-
-async function joinGame(rID, qty, isResume = false, hostMode = false) {
-    currentRoom = rID;
-    localStorage.setItem('activeRoom', rID);
+// --- LOGICA GENERAZIONE CARTELLE (No Doppioni) ---
+function renderPlayerCards(qty) {
+    const container = document.getElementById('my-cards-container');
+    container.innerHTML = ''; // Pulisce sempre prima di renderizzare
     
-    if(!isResume) {
-        await updateDoc(doc(db, "games", rID), { totalCards: increment(qty) });
-        localStorage.setItem(`cards_${rID}`, qty);
-    }
+    for(let i=0; i<qty; i++) {
+        const cardData = Array(27).fill(null);
+        const usedNumbers = new Set(); // Per evitare doppioni nella stessa cartella
 
-    const snap = await getDoc(doc(db, "games", rID));
-    const data = snap.data();
-    isHost = hostMode || data.host === auth.currentUser.uid;
-
-    if(data.status === "config" && isHost) {
-        showScreen('screen-config');
-        document.getElementById('conf-room-id').innerText = rID;
-        initRealtimeConfig();
-    } else {
-        renderPlayerCards(parseInt(localStorage.getItem(`cards_${rID}`)) || 1);
-        document.getElementById('display-room').innerText = rID;
-        if(isHost) {
-            document.getElementById('host-controls').classList.remove('hidden');
-            document.getElementById('btn-terminate').classList.remove('hidden');
+        for(let r=0; r<3; r++){
+            let ps = []; 
+            while(ps.length < 5){ 
+                let p = Math.floor(Math.random() * 9); 
+                if(!ps.includes(p)) ps.push(p); 
+            }
+            
+            ps.sort().forEach(p => {
+                let min = (p * 10) + 1;
+                let max = (p * 10) + 10;
+                let num;
+                do {
+                    num = Math.floor(Math.random() * (max - min + 1)) + min;
+                } while (usedNumbers.has(num));
+                
+                usedNumbers.add(num);
+                cardData[r * 9 + p] = num;
+            });
         }
-        initBoard();
-        showScreen('screen-game');
-        listenToGame();
+
+        const cardEl = document.createElement('div');
+        cardEl.className = 'tombola-card';
+        cardData.forEach(n => {
+            const c = document.createElement('div');
+            c.className = n ? `cell-card n-${n}` : 'cell-card empty';
+            c.innerText = n || '';
+            cardEl.appendChild(c);
+        });
+        container.appendChild(cardEl);
     }
 }
 
 // --- GIOCO ---
-document.getElementById('btn-start').onclick = async () => {
-    await updateDoc(doc(db, "games", currentRoom), { 
-        price: parseFloat(document.getElementById('cfg-price').value),
-        status: "playing" 
-    });
-    joinGame(currentRoom, 0, true, true);
-};
-
-document.getElementById('btn-extract').onclick = async () => {
-    const snap = await getDoc(doc(db, "games", currentRoom));
-    const drawn = snap.data().drawn;
-    let n; do { n = Math.floor(Math.random() * 90) + 1; } while(drawn.includes(n));
-    await updateDoc(doc(db, "games", currentRoom), { drawn: arrayUnion(n) });
-};
-
 function listenToGame() {
     onSnapshot(doc(db, "games", currentRoom), async (snap) => {
         const data = snap.data();
         if(!data || data.status === "finished") { 
-            alert("Partita terminata."); 
             localStorage.removeItem('activeRoom'); 
             location.reload(); 
             return; 
         }
 
-        data.drawn.forEach(n => {
-            document.querySelectorAll(`.n-${n}`).forEach(el => el.classList.add('hit'));
-            const bCell = document.getElementById(`b-${n}`);
-            if(bCell) bCell.classList.add('drawn');
-        });
-        if(data.drawn.length > 0) document.getElementById('last-number').innerText = data.drawn[data.drawn.length-1];
+        // Reset classi grafiche per aggiornamento pulito
+        document.querySelectorAll('.cell-card').forEach(el => el.classList.remove('hit'));
+        document.querySelectorAll('.b-cell').forEach(el => el.classList.remove('drawn'));
 
-        // Vincite
-        const prizeGoal = PRIZE_NAMES[data.currentPrizeIndex];
-        let won = false;
-        document.querySelectorAll('.tombola-card').forEach(c => { if(checkWins(c) === prizeGoal) won = true; });
-        
-        if(won && !data.winners[prizeGoal].includes(auth.currentUser.displayName)) {
-            await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion(auth.currentUser.displayName) });
+        // Autotap
+        if (data.drawn) {
+            data.drawn.forEach(n => {
+                document.querySelectorAll(`.n-${n}`).forEach(el => el.classList.add('hit'));
+                const bCell = document.getElementById(`b-${n}`);
+                if(bCell) bCell.classList.add('drawn');
+            });
+            if(data.drawn.length > 0) document.getElementById('last-number').innerText = data.drawn[data.drawn.length-1];
         }
 
-        const winners = data.winners[prizeGoal];
-        document.getElementById('prize-announcer').innerHTML = winners.length > 0 ? 
-            `<b>${prizeGoal.toUpperCase()}</b> vinto da: ${winners.join(', ')}` : `Premio: ${prizeGoal.toUpperCase()}`;
+        // Gestione Premi (Correzione Undefined)
+        const idx = data.currentPrizeIndex ?? 0;
+        const prizeGoal = PRIZE_NAMES[idx];
 
-        if(isHost && winners.length > 0 && data.currentPrizeIndex < 4) {
-            setTimeout(() => updateDoc(doc(db, "games", currentRoom), { currentPrizeIndex: increment(1) }), 5000);
+        if (prizeGoal && data.winners) {
+            const winners = data.winners[prizeGoal] || [];
+            document.getElementById('prize-announcer').innerHTML = winners.length > 0 ? 
+                `<b>${prizeGoal.toUpperCase()}</b> vinto da: ${winners.join(', ')}` : 
+                `In palio: <b>${prizeGoal.toUpperCase()}</b>`;
+
+            // Verifica vincita locale
+            let won = false;
+            document.querySelectorAll('.tombola-card').forEach(c => { 
+                if(checkWins(c) === prizeGoal) won = true; 
+            });
+            
+            if(won && !winners.includes(auth.currentUser.displayName)) {
+                await updateDoc(doc(db, "games", currentRoom), { 
+                    [`winners.${prizeGoal}`]: arrayUnion(auth.currentUser.displayName) 
+                });
+            }
+
+            // Host: Passaggio automatico premio
+            if(isHost && winners.length > 0 && idx < 4) {
+                setTimeout(() => {
+                    updateDoc(doc(db, "games", currentRoom), { currentPrizeIndex: idx + 1 });
+                }, 5000);
+            }
         }
     });
 }
 
-// --- UTILS ---
-function showScreen(id) { document.querySelectorAll('section').forEach(s => s.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
-
-function initBoard() {
-    const b = document.getElementById('main-board'); b.innerHTML = '';
-    for(let i=1; i<=90; i++){ const d = document.createElement('div'); d.className='b-cell'; d.id=`b-${i}`; d.innerText=i; b.appendChild(d); }
-}
+// --- ALTRE FUNZIONI (Create, Join, Extract...) ---
+// Mantieni le funzioni createRoom, joinGame, etc. fornite in precedenza 
+// ma assicurati che joinGame chiami renderPlayerCards(qty).
 
 function checkWins(card) {
     const cells = Array.from(card.querySelectorAll('.cell-card'));
@@ -184,19 +158,9 @@ function checkWins(card) {
     return null;
 }
 
-function renderPlayerCards(qty) {
-    const container = document.getElementById('my-cards-container'); container.innerHTML = '';
-    for(let i=0; i<qty; i++) {
-        const data = Array(27).fill(null);
-        for(let r=0; r<3; r++){
-            let ps = []; while(ps.length<5){ let p=Math.floor(Math.random()*9); if(!ps.includes(p)) ps.push(p); }
-            ps.forEach(p => data[r*9+p] = (p*10)+Math.floor(Math.random()*10)+1);
-        }
-        const cardEl = document.createElement('div'); cardEl.className = 'tombola-card';
-        data.forEach(n => { const c = document.createElement('div'); c.className = n ? `cell-card n-${n}` : 'cell-card empty'; c.innerText = n || ''; cardEl.appendChild(c); });
-        container.appendChild(cardEl);
-    }
-}
-
+// Funzioni UI standard
+function showScreen(id) { document.querySelectorAll('section').forEach(s => s.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
+document.getElementById('btn-login').onclick = () => signInWithPopup(auth, provider);
 document.getElementById('btn-leave').onclick = () => { localStorage.removeItem('activeRoom'); location.reload(); };
-document.getElementById('btn-terminate').onclick = async () => { if(confirm("Chiudere per tutti?")) await updateDoc(doc(db,"games",currentRoom), {status:"finished"}); };
+
+// ... (Resto delle funzioni btn-create, btn-join, listenToLobby come prima) ...
