@@ -24,7 +24,7 @@ body {
 
 #app {
     width: 100%;
-    max-width: 600px; /* Allargato leggermente per il tabellone */
+    max-width: 1200px; /* Allargato per TV-friendly */
     padding: 20px;
     box-sizing: border-box;
     display: flex;
@@ -67,7 +67,7 @@ button { cursor: pointer; border: none; font-family: inherit; transition: 0.2s; 
 /* TABELLONE RINNOVATO (6 Blocchi) */
 #main-board-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* Adatta le colonne */
+    grid-template-columns: repeat(6, 1fr); /* 6 blocchi in orizzontale */
     gap: 15px;
     margin-top: 10px;
 }

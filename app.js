@@ -310,6 +310,7 @@ async function joinGame(rID, qty, isResume = false) {
         document.getElementById('btn-terminate').classList.remove('hidden');
     } else {
         document.getElementById('player-area').classList.remove('hidden');
+        document.getElementById('board-area').classList.add('hidden');
         renderPlayerCards(qty);
     }
 
