@@ -407,3 +407,28 @@ function showScreen(id) {
     document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
 }
+
+// Funzione per abbandonare la partita (Giocatore)
+document.getElementById('btn-leave').onclick = () => {
+    if (confirm("Vuoi davvero abbandonare la partita?")) {
+        localStorage.removeItem('activeRoom');
+        location.reload(); // Torna al menu principale
+    }
+};
+
+// Funzione per chiudere la stanza (Solo Host)
+document.getElementById('btn-terminate').onclick = async () => {
+    if (confirm("Sei l'Host. Vuoi chiudere definitivamente la stanza per tutti?")) {
+        try {
+            // Aggiorna lo stato sul database per terminare la partita per tutti
+            await updateDoc(doc(db, "games", currentRoom), {
+                status: "finished"
+            });
+            localStorage.removeItem('activeRoom');
+            location.reload();
+        } catch (e) {
+            console.error("Errore durante la chiusura:", e);
+            alert("Errore nella chiusura della stanza.");
+        }
+    }
+};

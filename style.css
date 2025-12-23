@@ -54,6 +54,7 @@ button { cursor: pointer; border: none; font-family: inherit; transition: 0.2s; 
 
 /* --- GIOCO --- */
 .game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.game-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
 .prize-badge { background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(239, 68, 68, 0.5); font-size: 0.85rem; font-weight: bold; text-transform: uppercase; }
 
 /* ESTRAZIONE CON ANIMAZIONE */
