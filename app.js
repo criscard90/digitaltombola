@@ -334,7 +334,6 @@ async function joinGame(rID, qty, isResume = false) {
 
 document.getElementById('btn-login').addEventListener('click', () => signInWithPopup(auth, provider));
 document.getElementById('btn-logout').addEventListener('click', () => signOut(auth).then(() => location.reload()));
-document.getElementById('btn-join').addEventListener('click', () => joinGame(document.getElementById('input-room').value, parseInt(document.getElementById('input-qty').value)||1));
 
 document.getElementById('btn-extract').addEventListener('click', async () => {
     const btn = document.getElementById('btn-extract');
