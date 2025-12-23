@@ -389,15 +389,15 @@ function openJoinModal(roomId) {
 
 window.openJoinModal = openJoinModal;
 
-document.getElementById('btn-confirm-join').onclick = () => {
+document.getElementById('btn-confirm-join').addEventListener('click', () => {
     const qty = parseInt(document.getElementById('modal-qty').value) || 1;
     joinGame(document.getElementById('modal-room-code').innerText, qty);
     document.getElementById('join-modal').classList.add('hidden');
-};
+});
 
-document.getElementById('btn-cancel-join').onclick = () => {
+document.getElementById('btn-cancel-join').addEventListener('click', () => {
     document.getElementById('join-modal').classList.add('hidden');
-};
+});
 
 function showScreen(id) {
     document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
