@@ -9,10 +9,19 @@
 </head>
 <body>
     <div id="app">
+        <div id="winner-overlay" class="hidden">
+            <div class="winner-modal">
+                <div class="trophy">🏆</div>
+                <h2 id="win-title">TOMBOLA!</h2>
+                <p id="win-names">Giocatore 1</p>
+                <button onclick="document.getElementById('winner-overlay').classList.add('hidden')">Chiudi</button>
+            </div>
+            <div class="confetti-container"></div>
+        </div>
+
         <section id="screen-auth" class="fade-in">
             <div class="auth-card">
                 <h1>Tombola Pro 🎲</h1>
-                <p>Gioca a tombola in tempo reale con i tuoi amici.</p>
                 <button id="btn-login" class="btn-main">
                     <span class="material-icons-round">login</span> Accedi con Google
                 </button>
@@ -43,11 +52,9 @@
                     </div>
                     <button id="btn-join" class="btn-main">Entra in Partita</button>
                 </div>
-
+                
                 <div class="separator"><span>PARTITE PUBBLICHE</span></div>
-                <div id="lobby-list" class="lobby-container">
-                    <p class="empty-msg">Nessuna partita attiva al momento.</p>
-                </div>
+                <div id="lobby-list" class="lobby-container"></div>
             </div>
         </section>
 
@@ -58,9 +65,11 @@
             </header>
 
             <div class="extraction-area">
-                <div id="last-number">--</div>
+                <div id="last-number-container">
+                    <div id="last-number">--</div>
+                </div>
                 <div id="host-controls" class="hidden">
-                    <button id="btn-extract" class="btn-pulse">ESTRAI</button>
+                    <button id="btn-extract" class="btn-pulse">ESTRAI NUMERO</button>
                 </div>
             </div>
 
@@ -70,9 +79,9 @@
                     <div id="my-cards-container"></div>
                 </div>
 
-                <div id="board-container">
-                    <h3>Tabellone Estrazioni</h3>
-                    <div id="main-board"></div>
+                <div id="board-area">
+                    <h3>Tabellone (Gioca per l'Host)</h3>
+                    <div id="main-board-grid"></div>
                 </div>
             </div>
 
