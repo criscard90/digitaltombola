@@ -292,6 +292,13 @@ async function joinGame(rID, qty, isResume = false) {
     currentRoom = rID;
     isHost = snap.data().host === auth.currentUser.uid;
 
+    // Check if already joined this room
+    const storedCardsData = localStorage.getItem(`cardsData_${rID}`);
+    if(!isHost && !isResume && storedCardsData) {
+        isResume = true;
+        qty = parseInt(localStorage.getItem(`cards_${rID}`)) || 1;
+    }
+
     if(!isHost && !isResume) {
         const cardsData = [];
         for(let i=0; i<qty; i++) {
@@ -334,9 +341,10 @@ async function joinGame(rID, qty, isResume = false) {
         document.getElementById('player-area').classList.add('hidden');
         document.getElementById('host-controls').classList.remove('hidden');
         document.getElementById('btn-terminate').classList.remove('hidden');
-    } else if(!isResume) {
+    } else {
         document.getElementById('player-area').classList.remove('hidden');
         document.getElementById('board-area').classList.add('hidden');
+        document.getElementById('extraction-area').classList.add('hidden'); // Players see only their cards
         // Already rendered above
     }
 
