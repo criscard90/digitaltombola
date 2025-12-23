@@ -285,9 +285,9 @@ document.getElementById('btn-create').onclick = async () => {
     await setDoc(doc(db, "games", rID), {
         host: auth.currentUser.uid, drawn: [], status: "playing",
         winners: { ambo:[], terna:[], quaterna:[], cinquina:[], tombola:[] },
-        currentPrizeIndex: 0, cardCost: cost, totalCardsSold: 0
+        currentPrizeIndex: 0, cardCost: cost, totalCardsSold: 6  // Il tabellone ha 6 cartelle, il host paga per loro
     });
-    joinGame(rID, 0); 
+    joinGame(rID, 0);
 };
 
 async function joinGame(rID, qty, isResume = false) {
