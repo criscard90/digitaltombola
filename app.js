@@ -257,22 +257,27 @@ async function handlePrizes(data) {
 
 // Funzione Overlay Vincitore
 let lastShownPrize = "";
+// CORREZIONE ANIMAZIONE: Rimosso il flash, migliorata la persistenza
 function showWinnerOverlay(prize, winnersList) {
-    // Mostra l'animazione solo se cambia il premio o se non l'abbiamo ancora visto
-    const uniqueKey = prize + winnersList.length; // Semplice check per non refreshare se non cambia nulla
+    const uniqueKey = prize + winnersList.join(""); 
     if(lastShownPrize === uniqueKey) return;
     lastShownPrize = uniqueKey;
 
     const overlay = document.getElementById('winner-overlay');
-    document.getElementById('win-title').innerText = prize.toUpperCase() + "!";
-    document.getElementById('win-names').innerText = winnersList.join(", ");
+    const title = document.getElementById('win-title');
+    const names = document.getElementById('win-names');
+
+    title.innerText = prize.toUpperCase() + "!";
+    names.innerText = winnersList.join(", ");
     
     overlay.classList.remove('hidden');
-    
-    // Nascondi automaticamente dopo 5 secondi
+    overlay.style.display = "flex"; // Forza la visualizzazione flex
+
+    // Il timer di 8 secondi permette di godersi l'animazione durante il cambio premio dell'host
     setTimeout(() => {
         overlay.classList.add('hidden');
-    }, 5000);
+        overlay.style.display = "none";
+    }, 8000);
 }
 
 // --- HELPER DI VINCITA (CheckBoardWins & CheckCardWin uguali a prima) ---
@@ -328,14 +333,19 @@ async function joinGame(rID, qty, isResume = false) {
     if(!isResume) localStorage.setItem(`cards_${rID}`, qty);
 
     isHost = snap.data().host === auth.currentUser.uid;
-    renderPlayerCards(qty);
-    initBoard(); // Ora crea i 6 blocchi
     
-    document.getElementById('display-room').innerText = rID;
+    // CORREZIONE: Se è l'Host, nascondiamo l'area "Le tue cartelle" per evitare confusione
     if(isHost) {
+        document.getElementById('player-area').classList.add('hidden');
         document.getElementById('host-controls').classList.remove('hidden');
         document.getElementById('btn-terminate').classList.remove('hidden');
+    } else {
+        document.getElementById('player-area').classList.remove('hidden');
+        renderPlayerCards(qty);
     }
+
+    initBoard(); 
+    document.getElementById('display-room').innerText = rID;
     showScreen('screen-game');
     listenToGame();
 }
