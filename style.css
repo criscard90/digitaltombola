@@ -94,6 +94,12 @@ button { cursor: pointer; transition: all 0.2s; border: none; font-family: inher
 .btn-main:hover { background: var(--accent-hover); transform: translateY(-2px); }
 
 .btn-secondary {
+
+    display: flex;          /* Attiva il layout flex */
+    align-items: center;    /* Allinea verticalmente icona e testo al centro */
+    justify-content: center; /* Centra tutto il contenuto orizzontalmente */
+    gap: 10px;              /* Crea lo spazio preciso tra il + e il testo */
+
     background: rgba(255,255,255,0.1);
     color: white;
     padding: 14px;
