@@ -383,6 +383,8 @@ function openJoinModal(roomId) {
     document.getElementById('join-modal').classList.remove('hidden');
 }
 
+window.openJoinModal = openJoinModal;
+
 document.getElementById('btn-confirm-join').onclick = () => {
     const qty = parseInt(document.getElementById('modal-qty').value) || 1;
     joinGame(document.getElementById('modal-room-code').innerText, qty);
