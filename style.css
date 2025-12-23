@@ -144,4 +144,5 @@ button { cursor: pointer; border: none; font-family: inherit; transition: 0.2s; 
     border-radius: 12px;
     font-size: 0.9rem;
     font-style: italic;
+    margin-top: 20px;
 }
