@@ -3,21 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tombola PWA Pro</title>
+    <title>Tombola Pro</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app">
         <section id="screen-auth">
             <h1>Tombola Pro</h1>
-            <p>Accedi per giocare con i tuoi amici</p>
             <button id="btn-login" class="btn-main">Accedi con Google</button>
         </section>
-        
+
         <section id="screen-menu" class="hidden">
             <header>
                 <div>
-                    <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;">Bentornato,</p>
+                    <p class="user-label">Bentornato,</p>
                     <h2 id="user-name"></h2>
                 </div>
                 <button id="btn-logout" class="btn-text">Log Out</button>
@@ -27,47 +26,35 @@
             
             <div class="separator">Partite Attive</div>
             <div id="lobby-list" class="lobby-container"></div>
-            
+
             <div class="separator">Codice Privato</div>
             <div class="join-box">
-                <input type="number" id="input-room" placeholder="Inserisci Codice">
-                <input type="number" id="input-qty" placeholder="Quante cartelle? (1-6)" min="1" max="6" value="">
+                <input type="number" id="input-room" placeholder="Codice Stanza">
+                <input type="number" id="input-qty" placeholder="N° Cartelle" min="1" max="6" value="1">
                 <button id="btn-join" class="btn-main">Entra in Partita</button>
             </div>
         </section>
-        
-        <section id="screen-config" class="hidden">
-            <h2>Stanza <span id="conf-room-id"></span></h2>
-            <div class="config-card">
-                <label>Prezzo Cartella (€)</label>
-                <input type="number" id="cfg-price" value="1" step="0.5">
-                <div id="prize-preview">
-                    <p>Giocatori: <b id="total-cards-count">0</b> | Totale: <b id="total-pot">0</b>€</p>
-                </div>
-            </div>
-            <button id="btn-start" class="btn-main">CONGELA E INIZIA</button>
-        </section>
-        
+
         <section id="screen-game" class="hidden">
             <div id="prize-announcer">In attesa dell'estrazione...</div>
             <div id="last-number">--</div>
-            
+
             <div id="host-controls" class="hidden">
                 <button id="btn-extract" class="btn-main">ESTRAI NUMERO</button>
             </div>
-            
+
             <div id="player-area">
                 <div id="my-cards-container"></div>
             </div>
-            
+
             <div id="board-container">
                 <h4>Tabellone Stanza <span id="display-room"></span></h4>
                 <div id="main-board"></div>
             </div>
-            
+
             <footer class="game-footer">
-                <button id="btn-leave" class="btn-danger">Esci Temporaneamente</button>
-                <button id="btn-terminate" class="btn-danger hidden">Termina Partita per Tutti</button>
+                <button id="btn-leave" class="btn-danger">Esci</button>
+                <button id="btn-terminate" class="btn-danger hidden">Termina per tutti</button>
             </footer>
         </section>
     </div>
