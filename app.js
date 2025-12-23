@@ -65,16 +65,27 @@ async function checkActiveSession() {
 function updatePrizeUI(data) {
     const totalPot = (data.cardCost || 0) * (data.totalCardsSold || 0);
     document.getElementById('total-pot').innerText = `€${totalPot.toFixed(2)}`;
-    
+
     const container = document.getElementById('prizes-list');
     if (!container) return;
     container.innerHTML = '';
-    
+
     PRIZE_ORDER.forEach((p, i) => {
         const val = (totalPot * PRIZE_PERCENTAGES[p]).toFixed(2);
         const div = document.createElement('div');
         div.className = `prize-item ${data.currentPrizeIndex === i ? 'active' : ''}`;
         div.innerHTML = `<label>${p}</label><span>€${val}</span>`;
+        container.appendChild(div);
+    });
+}
+
+function updatePlayersList(players) {
+    const container = document.getElementById('players-list');
+    container.innerHTML = '<h4>Giocatori:</h4>';
+    players.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'player-item';
+        div.innerHTML = `${p.name} <span>(${p.cards} cartelle)</span>`;
         container.appendChild(div);
     });
 }
@@ -122,6 +133,7 @@ function listenToGame() {
         }
 
         handlePrizes(data);
+        updatePlayersList(data.players || []);
     });
 }
 
@@ -285,7 +297,7 @@ document.getElementById('btn-create').onclick = async () => {
     await setDoc(doc(db, "games", rID), {
         host: auth.currentUser.uid, drawn: [], status: "playing",
         winners: { ambo:[], terna:[], quaterna:[], cinquina:[], tombola:[] },
-        currentPrizeIndex: 0, cardCost: cost, totalCardsSold: 6  // Il tabellone ha 6 cartelle, il host paga per loro
+        currentPrizeIndex: 0, cardCost: cost, totalCardsSold: 6, players: [{name: auth.currentUser.displayName, cards: 6}]  // Il tabellone ha 6 cartelle, il host paga per loro
     });
     joinGame(rID, 0);
 };
@@ -299,7 +311,7 @@ async function joinGame(rID, qty, isResume = false) {
     isHost = snap.data().host === auth.currentUser.uid;
     
     if(!isHost && !isResume) {
-        await updateDoc(doc(db, "games", rID), { totalCardsSold: increment(qty) });
+        await updateDoc(doc(db, "games", rID), { totalCardsSold: increment(qty), players: arrayUnion({name: auth.currentUser.displayName, cards: qty}) });
         localStorage.setItem(`cards_${rID}`, qty);
     }
     
@@ -359,12 +371,27 @@ function listenToLobby() {
         snap.forEach(d => {
             const div = document.createElement('div');
             div.className = 'lobby-item';
-            div.innerHTML = `<span>Stanza <b>${d.id}</b> (${d.data().cardCost}€)</span> 
-                             <button onclick="document.getElementById('input-room').value='${d.id}'; document.getElementById('btn-join').click();">Entra</button>`;
+            div.innerHTML = `<span>Stanza <b>${d.id}</b> (${d.data().cardCost}€)</span>
+                             <button onclick="openJoinModal('${d.id}')">Entra</button>`;
             list.appendChild(div);
         });
     });
 }
+
+function openJoinModal(roomId) {
+    document.getElementById('modal-room-code').innerText = roomId;
+    document.getElementById('join-modal').classList.remove('hidden');
+}
+
+document.getElementById('btn-confirm-join').onclick = () => {
+    const qty = parseInt(document.getElementById('modal-qty').value) || 1;
+    joinGame(document.getElementById('modal-room-code').innerText, qty);
+    document.getElementById('join-modal').classList.add('hidden');
+};
+
+document.getElementById('btn-cancel-join').onclick = () => {
+    document.getElementById('join-modal').classList.add('hidden');
+};
 
 function showScreen(id) {
     document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));

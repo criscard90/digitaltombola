@@ -18,6 +18,18 @@
             </div>
         </div>
 
+        <div id="join-modal" class="hidden">
+            <div class="modal-content">
+                <h3>Unisciti alla stanza <span id="modal-room-code"></span></h3>
+                <div class="input-group">
+                    <label class="input-label">Numero di cartelle (1-6):</label>
+                    <input type="number" id="modal-qty" min="1" max="6" value="1">
+                </div>
+                <button id="btn-confirm-join" class="btn-main">Entra</button>
+                <button id="btn-cancel-join" class="btn-text">Annulla</button>
+            </div>
+        </div>
+
         <section id="screen-auth" class="fade-in">
             <div class="auth-card">
                 <h1>Tombola Pro 🎲</h1>
@@ -46,17 +58,6 @@
                     <button id="btn-create" class="btn-secondary">
                         <span class="material-icons-round">add_circle</span> Crea Stanza
                     </button>
-                </div>
-                
-                <div class="separator"><span>OPPURE</span></div>
-                
-                <div class="join-box">
-                    <h3>Unisciti a una partita</h3>
-                    <div class="input-group">
-                        <input type="number" id="input-room" placeholder="Codice Stanza">
-                        <input type="number" id="input-qty" placeholder="Cartelle (1-6)" min="1" max="6" value="">
-                    </div>
-                    <button id="btn-join" class="btn-main">Entra in Partita</button>
                 </div>
                 
                 <div class="separator"><span>PARTITE PUBBLICHE</span></div>
@@ -92,6 +93,7 @@
                     </div>
                     <h3>Tabellone</h3>
                     <div id="main-board-grid"></div>
+                    <div id="players-list"></div>
                 </div>
             </div>
 
