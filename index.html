@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tombola Pro - TV Mode</title>
+    <title>Tombola Pro</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 </head>
@@ -38,7 +38,7 @@
             
             <div class="menu-actions">
                 <div class="join-box create-box">
-                    <h3>Crea Nuova Stanza (Modalità TV)</h3>
+                    <h3>Crea Nuova Stanza</h3>
                     <div class="input-group">
                         <label class="input-label">Costo Cartella (€):</label>
                         <input type="number" id="input-cost" value="1.00" step="0.50" min="0.50">
@@ -54,7 +54,7 @@
                     <h3>Unisciti a una partita</h3>
                     <div class="input-group">
                         <input type="number" id="input-room" placeholder="Codice Stanza">
-                        <input type="number" id="input-qty" placeholder="Cartelle (1-6)" min="1" max="6" value="1">
+                        <input type="number" id="input-qty" placeholder="Cartelle (1-6)" min="1" max="6" value="">
                     </div>
                     <button id="btn-join" class="btn-main">Entra in Partita</button>
                 </div>
@@ -70,25 +70,22 @@
                 <div id="prize-announcer" class="prize-badge">In attesa...</div>
             </header>
 
-            <div class="game-content tv-mode">
-                
-                <div class="left-column">
-                    <div class="extraction-area">
-                        <div id="last-number-container">
-                            <div id="last-number">--</div>
-                        </div>
-                        <div id="host-controls" class="hidden">
-                            <button id="btn-extract" class="btn-pulse">ESTRAI</button>
-                        </div>
-                    </div>
+            <div class="extraction-area">
+                <div id="last-number-container">
+                    <div id="last-number">--</div>
+                </div>
+                <div id="host-controls" class="hidden">
+                    <button id="btn-extract" class="btn-pulse">ESTRAI NUMERO</button>
+                </div>
+            </div>
 
-                    <div id="player-area">
-                        <h3>Le tue cartelle</h3>
-                        <div id="my-cards-container"></div>
-                    </div>
+            <div class="game-content">
+                <div id="player-area">
+                    <h3>Le tue cartelle</h3>
+                    <div id="my-cards-container"></div>
                 </div>
 
-                <div class="right-column">
+                <div id="board-area">
                     <div class="prize-pool-display">
                         <div class="pot-header">Montepremi Totale: <span id="total-pot">€0.00</span></div>
                         <div id="prizes-list" class="prizes-grid"></div>
@@ -96,7 +93,6 @@
                     <h3>Tabellone</h3>
                     <div id="main-board-grid"></div>
                 </div>
-
             </div>
 
             <footer class="game-footer">
