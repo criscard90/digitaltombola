@@ -40,7 +40,7 @@ body {
 /* ... (Stili Auth, Menu, Input e Pulsanti identici a prima, ometti se vuoi risparmiare spazio, ma li rimetto per completezza del layout flex) ... */
 .auth-card { text-align: center; margin-top: 40vh; transform: translateY(-50%); }
 .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-.join-box { background: var(--bg-card); padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); }
+.join-box { background: var(--bg-card); padding: 20px; border-radius: 16px; margin-bottom: 20px;margin-top: 20px; border: 1px solid rgba(255,255,255,0.1); }
 .input-group { display: flex; gap: 10px; margin-bottom: 10px; }
 input { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 12px; border-radius: 8px; width: 100%; }
 
