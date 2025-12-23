@@ -225,28 +225,10 @@ function showWinnerOverlay(prize, winnersList, amount) {
 }
 
 // --- CARTELLE ---
-function renderPlayerCards(qty) {
+function renderPlayerCards(cardsData) {
     const container = document.getElementById('my-cards-container');
     container.innerHTML = '';
-    for(let i=0; i<qty; i++) {
-        const data = Array(27).fill(null);
-        const used = new Set();
-        for(let r=0; r<3; r++){
-            let ps = []; 
-            while(ps.length<5){ 
-                let p=Math.floor(Math.random()*9); 
-                if(!ps.includes(p)) ps.push(p); 
-            }
-            ps.sort().forEach(p => {
-                let min = p === 0 ? 1 : (p * 10);
-                let max = (p * 10) + 9;
-                if (p===8) max = 90;
-                let n; 
-                do { n = Math.floor(Math.random() * (max - min + 1)) + min; } while(used.has(n));
-                used.add(n); 
-                data[r*9+p] = n;
-            });
-        }
+    cardsData.forEach(data => {
         const cardEl = document.createElement('div');
         cardEl.className = 'tombola-card';
         data.forEach(n => {
@@ -256,7 +238,7 @@ function renderPlayerCards(qty) {
             cardEl.appendChild(c);
         });
         container.appendChild(cardEl);
-    }
+    });
 }
 
 function checkCardWin(card, targetPrize) {
@@ -306,24 +288,56 @@ async function joinGame(rID, qty, isResume = false) {
     if(!rID) return;
     const snap = await getDoc(doc(db, "games", rID));
     if(!snap.exists()) return;
-    
+
     currentRoom = rID;
     isHost = snap.data().host === auth.currentUser.uid;
-    
+
     if(!isHost && !isResume) {
+        const cardsData = [];
+        for(let i=0; i<qty; i++) {
+            const cardData = Array(27).fill(null);
+            const used = new Set();
+            for(let r=0; r<3; r++){
+                let ps = [];
+                while(ps.length<5){
+                    let p=Math.floor(Math.random()*9);
+                    if(!ps.includes(p)) ps.push(p);
+                }
+                ps.sort().forEach(p => {
+                    let min = p === 0 ? 1 : (p * 10);
+                    let max = (p * 10) + 9;
+                    if (p===8) max = 90;
+                    let n;
+                    do { n = Math.floor(Math.random() * (max - min + 1)) + min; } while(used.has(n));
+                    used.add(n);
+                    cardData[r*9+p] = n;
+                });
+            }
+            cardsData.push(cardData);
+        }
         await updateDoc(doc(db, "games", rID), { totalCardsSold: increment(qty), players: arrayUnion({name: auth.currentUser.displayName, cards: qty}) });
         localStorage.setItem(`cards_${rID}`, qty);
+        localStorage.setItem(`cardsData_${rID}`, JSON.stringify(cardsData));
+        renderPlayerCards(cardsData);
+    } else if(!isHost && isResume) {
+        const storedData = localStorage.getItem(`cardsData_${rID}`);
+        if(storedData) {
+            renderPlayerCards(JSON.parse(storedData));
+        } else {
+            // Fallback, but shouldn't happen
+            renderPlayerCards([]);
+        }
     }
-    
+
     localStorage.setItem('activeRoom', rID);
     if(isHost) {
         document.getElementById('player-area').classList.add('hidden');
         document.getElementById('host-controls').classList.remove('hidden');
         document.getElementById('btn-terminate').classList.remove('hidden');
-    } else {
+    } else if(!isResume) {
         document.getElementById('player-area').classList.remove('hidden');
         document.getElementById('board-area').classList.add('hidden');
-        renderPlayerCards(qty);
+        // Already rendered above
     }
 
     initBoard();
