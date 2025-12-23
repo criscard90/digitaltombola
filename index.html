@@ -9,41 +9,45 @@
 <body>
     <div id="app">
         <section id="screen-auth">
-            <h1>Tombola Digitale</h1>
+            <h1>Tombola Pro</h1>
+            <p>Accedi per giocare con i tuoi amici</p>
             <button id="btn-login" class="btn-main">Accedi con Google</button>
         </section>
 
         <section id="screen-menu" class="hidden">
-            <h2>Ciao, <span id="user-name"></span></h2>
+            <header>
+                <h2>Ciao, <span id="user-name"></span></h2>
+                <button id="btn-logout" class="btn-text">Esci</button>
+            </header>
+            
             <button id="btn-create" class="btn-secondary">Crea Nuova Stanza</button>
-            <div class="separator">Oppure unisciti</div>
-            <input type="number" id="input-room" placeholder="Codice Stanza">
-            <input type="number" id="input-qty" placeholder="Quante cartelle? (1-6)" min="1" max="6">
-            <button id="btn-join" class="btn-main">Entra e Compra</button>
+            
+            <div class="separator">Partite Attive</div>
+            <div id="lobby-list" class="lobby-container">
+                </div>
+
+            <div class="separator">Oppure Codice Privato</div>
+            <div class="join-box">
+                <input type="number" id="input-room" placeholder="Codice">
+                <input type="number" id="input-qty" placeholder="N° Cartelle" min="1" max="6" value="1">
+                <button id="btn-join" class="btn-main">Entra</button>
+            </div>
         </section>
 
         <section id="screen-config" class="hidden">
             <h2>Stanza <span id="conf-room-id"></span></h2>
-            <input type="number" id="cfg-price" value="1" step="0.5">
-            <div id="prize-summary">
-                <p>Cartelle: <b id="total-cards-count">0</b> | Totale: <b id="total-pot">0</b>€</p>
-                <div class="prize-grid">
-                    <span>Ambo (10%): <i id="p-ambo">0</i>€</span>
-                    <span>Terna (15%): <i id="p-terna">0</i>€</span>
-                    <span>Quaterna (20%): <i id="p-quat">0</i>€</span>
-                    <span>Cinquina (25%): <i id="p-cinq">0</i>€</span>
-                    <span>Tombola (30%): <i id="p-tomb">0</i>€</span>
+            <div class="config-card">
+                <label>Prezzo Cartella (€)</label>
+                <input type="number" id="cfg-price" value="1" step="0.5">
+                <div id="prize-preview">
+                    <p>Giocatori: <b id="total-cards-count">0</b> | Totale: <b id="total-pot">0</b>€</p>
                 </div>
             </div>
             <button id="btn-start" class="btn-main">CONGELA E INIZIA</button>
         </section>
 
         <section id="screen-game" class="hidden">
-            <div class="game-header">
-                <div id="prize-announcer">In attesa dell'Ambo...</div>
-                <span>Stanza: <b id="display-room"></b></span>
-            </div>
-            
+            <div id="prize-announcer">In attesa dell'estrazione...</div>
             <div id="last-number">--</div>
 
             <div id="host-controls" class="hidden">
@@ -54,9 +58,15 @@
                 <div id="my-cards-container"></div>
             </div>
 
-            <div id="board-container" class="hidden">
+            <div id="board-container">
+                <h4>Tabellone Stanza <span id="display-room"></span></h4>
                 <div id="main-board"></div>
             </div>
+
+            <footer class="game-footer">
+                <button id="btn-leave" class="btn-danger">Esci Temporaneamente</button>
+                <button id="btn-terminate" class="btn-danger hidden">Termina Partita per Tutti</button>
+            </footer>
         </section>
     </div>
     <script type="module" src="app.js"></script>
