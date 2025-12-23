@@ -1,38 +1,183 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
 
 :root {
-    --bg-gradient: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
+    --bg-dark: #0f172a;
+    --bg-card: rgba(30, 41, 59, 0.6);
     --accent: #fbbf24;
-    --card-bg: rgba(30, 41, 59, 0.7);
+    --accent-hover: #d97706;
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
-    --hit: #ef4444;
+    --hit-color: #ef4444;
+    --border-color: rgba(255, 255, 255, 0.1);
 }
 
 body {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    background: var(--bg-gradient);
+    background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
     background-attachment: fixed;
     color: var(--text-primary);
     margin: 0;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
-    min-height: 100vh;
 }
 
-#app { width: 100%; max-width: 480px; padding: 20px; }
-.hidden { display: none !important; }
+#app {
+    width: 100%;
+    max-width: 500px;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
 
-/* Griglia Cartella Tombola */
-.tombola-card {
-    background: #cbd5e1;
-    display: grid !important;
-    grid-template-columns: repeat(9, 1fr) !important; /* Forza 9 colonne */
-    gap: 3px;
-    padding: 6px;
+/* Utilities */
+.hidden { display: none !important; }
+.fade-in { animation: fadeIn 0.4s ease-in; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+h1, h2, h3 { margin: 0 0 10px 0; }
+.highlight { color: var(--accent); font-weight: bold; }
+
+/* Auth & Menu */
+.auth-card {
+    text-align: center;
+    margin-top: 40vh;
+    transform: translateY(-50%);
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.user-label { font-size: 0.9rem; color: var(--text-secondary); }
+
+/* Input e Form */
+.join-box {
+    background: var(--bg-card);
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 20px;
+}
+
+.input-group { display: flex; gap: 10px; margin-bottom: 10px; }
+input {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    width: 100%;
+    font-family: inherit;
+}
+
+/* Pulsanti */
+button { cursor: pointer; transition: all 0.2s; border: none; font-family: inherit; }
+
+.btn-main {
+    background: var(--accent);
+    color: #000;
+    padding: 14px;
     border-radius: 12px;
-    margin: 20px 0;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    font-weight: 800;
+    width: 100%;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.btn-main:hover { background: var(--accent-hover); transform: translateY(-2px); }
+
+.btn-secondary {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    padding: 14px;
+    border-radius: 12px;
+    width: 100%;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.2); }
+
+.btn-text { background: none; color: var(--text-secondary); padding: 8px; text-decoration: underline; }
+.btn-danger { background: #ef4444; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; }
+
+.btn-pulse {
+    background: var(--accent);
+    color: black;
+    font-weight: 900;
+    padding: 10px 30px;
+    border-radius: 50px;
+    font-size: 1.2rem;
+    box-shadow: 0 0 15px var(--accent);
+    animation: pulse 2s infinite;
+}
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(251, 191, 36, 0); } 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); } }
+
+/* Separatori e Lobby */
+.separator {
+    display: flex; align-items: center; text-align: center; color: var(--text-secondary); margin: 20px 0;
+}
+.separator::before, .separator::after { content: ''; flex: 1; border-bottom: 1px solid var(--border-color); }
+.separator span { padding: 0 10px; font-size: 0.8rem; text-transform: uppercase; }
+
+.lobby-container { display: flex; flex-direction: column; gap: 10px; max-height: 200px; overflow-y: auto; }
+.lobby-item {
+    background: rgba(255,255,255,0.05);
+    padding: 10px 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+.lobby-item button { background: var(--accent); color: black; padding: 5px 12px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; }
+
+/* --- GIOCO --- */
+.game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.prize-badge {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.extraction-area {
+    text-align: center;
+    margin-bottom: 30px;
+    background: radial-gradient(circle, rgba(251, 191, 36, 0.1) 0%, rgba(0,0,0,0) 70%);
+    padding: 20px 0;
+}
+
+#last-number {
+    font-size: 5rem;
+    line-height: 1;
+    font-weight: 800;
+    color: white;
+    text-shadow: 0 0 30px rgba(251, 191, 36, 0.6);
+    margin-bottom: 15px;
+}
+
+/* CARTELLA TOMBOLA */
+.tombola-card {
+    background: #e2e8f0;
+    display: grid !important;
+    grid-template-columns: repeat(9, 1fr) !important;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    border: 2px solid #cbd5e1;
 }
 
 .cell-card {
@@ -43,57 +188,52 @@ body {
     align-items: center;
     justify-content: center;
     font-weight: 800;
-    font-size: 0.8rem;
-    border-radius: 4px;
-    transition: all 0.3s ease;
+    font-size: 0.9rem; /* Un po' più grande per leggibilità */
+    user-select: none;
+    cursor: default;
 }
+
+.cell-card.empty { background: #cbd5e1; } /* Colore "vuoto" che si fonde meglio */
 
 .cell-card.hit {
-    background: var(--hit) !important;
+    background: var(--hit-color) !important;
     color: white !important;
-    transform: scale(0.95);
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,0.2);
 }
 
-.cell-card.empty { background: #94a3b8; }
-
-/* Tabellone Host */
+/* TABELLONE GLOBALE */
+#board-container { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color); }
 #main-board {
     display: grid;
     grid-template-columns: repeat(10, 1fr);
-    gap: 4px;
-    margin-top: 15px;
+    gap: 3px;
+    margin-top: 10px;
 }
 
 .b-cell {
     aspect-ratio: 1;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.65rem;
-    border-radius: 4px;
+    font-size: 0.6rem;
     color: var(--text-secondary);
+    border-radius: 3px;
 }
 
-.b-cell.drawn { background: var(--accent); color: #000; font-weight: bold; }
-
-/* UI */
-.btn-main {
+.b-cell.drawn {
     background: var(--accent);
     color: #000;
-    border: none;
-    padding: 16px;
-    border-radius: 14px;
-    font-weight: 800;
-    width: 100%;
-    cursor: pointer;
+    font-weight: bold;
+    border-color: var(--accent);
+    box-shadow: 0 0 5px rgba(251, 191, 36, 0.5);
 }
 
-#last-number {
-    font-size: 6rem;
-    font-weight: 800;
-    color: white;
-    text-align: center;
-    text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+.game-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
 }

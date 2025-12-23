@@ -5,59 +5,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tombola Pro</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 </head>
 <body>
     <div id="app">
-        <section id="screen-auth">
-            <h1>Tombola Pro</h1>
-            <button id="btn-login" class="btn-main">Accedi con Google</button>
+        <section id="screen-auth" class="fade-in">
+            <div class="auth-card">
+                <h1>Tombola Pro 🎲</h1>
+                <p>Gioca a tombola in tempo reale con i tuoi amici.</p>
+                <button id="btn-login" class="btn-main">
+                    <span class="material-icons-round">login</span> Accedi con Google
+                </button>
+            </div>
         </section>
 
-        <section id="screen-menu" class="hidden">
-            <header>
-                <div>
-                    <p class="user-label">Bentornato,</p>
-                    <h2 id="user-name"></h2>
+        <section id="screen-menu" class="hidden fade-in">
+            <header class="app-header">
+                <div class="user-info">
+                    <span class="user-label">Ciao,</span>
+                    <h2 id="user-name">Giocatore</h2>
                 </div>
-                <button id="btn-logout" class="btn-text">Log Out</button>
+                <button id="btn-logout" class="btn-text">Esci</button>
             </header>
             
-            <button id="btn-create" class="btn-secondary">+ Crea Nuova Stanza</button>
-            
-            <div class="separator">Partite Attive</div>
-            <div id="lobby-list" class="lobby-container"></div>
+            <div class="menu-actions">
+                <button id="btn-create" class="btn-secondary">
+                    <span class="material-icons-round">add_circle</span> Crea Nuova Stanza
+                </button>
+                
+                <div class="separator"><span>OPPURE</span></div>
+                
+                <div class="join-box">
+                    <h3>Unisciti a una partita</h3>
+                    <div class="input-group">
+                        <input type="number" id="input-room" placeholder="Codice Stanza">
+                        <input type="number" id="input-qty" placeholder="Cartelle (1-6)" min="1" max="6" value="1">
+                    </div>
+                    <button id="btn-join" class="btn-main">Entra in Partita</button>
+                </div>
 
-            <div class="separator">Codice Privato</div>
-            <div class="join-box">
-                <input type="number" id="input-room" placeholder="Codice Stanza">
-                <input type="number" id="input-qty" placeholder="N° Cartelle" min="1" max="6" value="1">
-                <button id="btn-join" class="btn-main">Entra in Partita</button>
+                <div class="separator"><span>PARTITE PUBBLICHE</span></div>
+                <div id="lobby-list" class="lobby-container">
+                    <p class="empty-msg">Nessuna partita attiva al momento.</p>
+                </div>
             </div>
         </section>
 
-        <section id="screen-game" class="hidden">
-            <div id="prize-announcer">In attesa dell'estrazione...</div>
-            <div id="last-number">--</div>
+        <section id="screen-game" class="hidden fade-in">
+            <header class="game-header">
+                <div class="room-info">Stanza: <span id="display-room" class="highlight">---</span></div>
+                <div id="prize-announcer" class="prize-badge">In attesa...</div>
+            </header>
 
-            <div id="host-controls" class="hidden">
-                <button id="btn-extract" class="btn-main">ESTRAI NUMERO</button>
+            <div class="extraction-area">
+                <div id="last-number">--</div>
+                <div id="host-controls" class="hidden">
+                    <button id="btn-extract" class="btn-pulse">ESTRAI</button>
+                </div>
             </div>
 
-            <div id="player-area">
-                <div id="my-cards-container"></div>
-            </div>
+            <div class="game-content">
+                <div id="player-area">
+                    <h3>Le tue cartelle</h3>
+                    <div id="my-cards-container"></div>
+                </div>
 
-            <div id="board-container">
-                <h4>Tabellone Stanza <span id="display-room"></span></h4>
-                <div id="main-board"></div>
+                <div id="board-container">
+                    <h3>Tabellone Estrazioni</h3>
+                    <div id="main-board"></div>
+                </div>
             </div>
 
             <footer class="game-footer">
-                <button id="btn-leave" class="btn-danger">Esci</button>
-                <button id="btn-terminate" class="btn-danger hidden">Termina per tutti</button>
+                <button id="btn-leave" class="btn-text">Abbandona</button>
+                <button id="btn-terminate" class="btn-danger hidden">Chiudi Stanza</button>
             </footer>
         </section>
     </div>
+    
     <script type="module" src="app.js"></script>
 </body>
 </html>
