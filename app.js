@@ -369,13 +369,25 @@ document.getElementById('btn-extract').onclick = async () => {
 document.getElementById('btn-leave').onclick = () => { localStorage.removeItem('activeRoom'); location.reload(); };
 
 function listenToLobby() {
+    // Ascolta le partite attive (max 5)
     onSnapshot(query(collection(db, "games"), where("status", "==", "playing"), limit(5)), (snap) => {
         const list = document.getElementById('lobby-list');
         list.innerHTML = '';
+
+        // --- QUESTA È LA PARTE CHE MANCAVA ---
+        if (snap.empty) {
+            list.innerHTML = '<div class="empty-msg">Nessuna partita pubblica trovata.<br>Creane una tu!</div>';
+            return;
+        }
+        // -------------------------------------
+
         snap.forEach(d => {
             const div = document.createElement('div');
             div.className = 'lobby-item';
-            div.innerHTML = `<span>Stanza <b>${d.id}</b></span> <button onclick="document.getElementById('input-room').value='${d.id}'; document.getElementById('btn-join').click();">Entra</button>`;
+            div.innerHTML = `
+                <span>Stanza <b>${d.id}</b></span> 
+                <button onclick="document.getElementById('input-room').value='${d.id}'; document.getElementById('btn-join').click();">Entra</button>
+            `;
             list.appendChild(div);
         });
     });

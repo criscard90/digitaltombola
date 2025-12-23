@@ -134,3 +134,14 @@ button { cursor: pointer; border: none; font-family: inherit; transition: 0.2s; 
 .winner-modal h2 { font-size: 2.5rem; margin: 0; text-transform: uppercase; font-weight: 900; }
 .winner-modal p { font-size: 1.2rem; font-weight: 600; margin: 10px 0 20px 0; }
 .winner-modal button { background: white; color: black; padding: 10px 30px; border-radius: 50px; font-weight: bold; }
+
+.empty-msg {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 30px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-style: italic;
+}
