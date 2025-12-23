@@ -21,7 +21,7 @@ let currentRoom = null;
 let isHost = false;
 const PRIZE_NAMES = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola'];
 
-// --- BLOCCHI TABELLONE (Definizione manuale per precisione) ---
+// --- BLOCCHI TABELLONE (Definizione per i 6 blocchi da 15 numeri) ---
 const BOARD_BLOCKS = [
     [1,2,3,4,5, 11,12,13,14,15, 21,22,23,24,25],
     [6,7,8,9,10, 16,17,18,19,20, 26,27,28,29,30],
@@ -31,23 +31,32 @@ const BOARD_BLOCKS = [
     [66,67,68,69,70, 76,77,78,79,80, 86,87,88,89,90]
 ];
 
-// --- AUTH ---
+// --- AUTH & SESSIONE ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         document.getElementById('user-name').innerText = user.displayName;
         showScreen('screen-menu');
         listenToLobby();
+        checkActiveSession();
     } else {
         showScreen('screen-auth');
     }
 });
 
-function showScreen(id) {
-    document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
-    document.getElementById(id).classList.remove('hidden');
+async function checkActiveSession() {
+    const saved = localStorage.getItem('activeRoom');
+    if (saved) {
+        const snap = await getDoc(doc(db, "games", saved));
+        if (snap.exists() && snap.data().status !== "finished") {
+            const qty = localStorage.getItem(`cards_${saved}`) || 1;
+            joinGame(saved, parseInt(qty), true);
+        } else {
+            localStorage.removeItem('activeRoom');
+        }
+    }
 }
 
-// --- LOGICA GIOCO ---
+// --- LOGICA GENERAZIONE ---
 function renderPlayerCards(qty) {
     const container = document.getElementById('my-cards-container');
     container.innerHTML = '';
@@ -57,7 +66,10 @@ function renderPlayerCards(qty) {
         for(let r=0; r<3; r++){
             let ps = []; while(ps.length<5){ let p=Math.floor(Math.random()*9); if(!ps.includes(p)) ps.push(p); }
             ps.sort().forEach(p => {
-                let n; do { n = (p*10) + Math.floor(Math.random()*10)+1; } while(used.has(n));
+                let min = (p * 10) + 1;
+                let max = (p * 10) + 10;
+                let n; 
+                do { n = Math.floor(Math.random() * (max - min + 1)) + min; } while(used.has(n));
                 used.add(n); data[r*9+p] = n;
             });
         }
@@ -88,26 +100,17 @@ function initBoard() {
     });
 }
 
-async function joinGame(rID, qty, hostMode = false) {
-    currentRoom = rID;
-    isHost = hostMode;
-    renderPlayerCards(qty);
-    initBoard();
-    document.getElementById('display-room').innerText = rID;
-    if(isHost) {
-        document.getElementById('host-controls').classList.remove('hidden');
-        document.getElementById('btn-terminate').classList.remove('hidden');
-    }
-    showScreen('screen-game');
-    listenToGame();
-}
-
+// --- GIOCO IN TEMPO REALE ---
 function listenToGame() {
     onSnapshot(doc(db, "games", currentRoom), async (snap) => {
         const data = snap.data();
-        if(!data) return;
+        if(!data || data.status === "finished") {
+            localStorage.removeItem('activeRoom');
+            location.reload();
+            return;
+        }
 
-        // Aggiorna estratti
+        // UI Reset & Autotap
         document.querySelectorAll('.cell-card, .b-cell').forEach(el => el.classList.remove('hit', 'drawn'));
         if(data.drawn) {
             data.drawn.forEach(n => {
@@ -118,38 +121,45 @@ function listenToGame() {
             document.getElementById('last-number').innerText = data.drawn[data.drawn.length-1] || '--';
         }
 
-        // Gestione Premi
+        // Gestione Vincite
         const idx = data.currentPrizeIndex ?? 0;
         const prizeGoal = PRIZE_NAMES[idx];
         if(!prizeGoal) return;
 
         const winners = data.winners[prizeGoal] || [];
         
-        // Verifica se ho vinto io
+        // 1. Controllo vincita Giocatore locale
         let won = false;
         document.querySelectorAll('.tombola-card').forEach(c => {
             if(checkWins(c) === prizeGoal) won = true;
         });
 
-        // Verifica se ha vinto il tabellone
-        let boardWon = checkBoardWins(data.drawn || []) === prizeGoal;
+        // 2. Controllo vincita Tabellone (Blocchi)
+        let boardWonPrize = checkBoardWins(data.drawn || []);
+        let boardHasWon = boardWonPrize === prizeGoal;
 
+        // Notifica vincite al DB
         if(won && !winners.includes(auth.currentUser.displayName)) {
             await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion(auth.currentUser.displayName) });
         }
-        if(isHost && boardWon && !winners.includes("TABELLONE")) {
+        
+        // Solo l'host aggiorna il vincitore "TABELLONE" per evitare conflitti
+        if(isHost && boardHasWon && !winners.includes("TABELLONE")) {
             await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion("TABELLONE") });
         }
 
+        // UI Premi
         document.getElementById('prize-announcer').innerHTML = winners.length > 0 ? 
-            `<b>${prizeGoal.toUpperCase()}</b> vinto da: ${winners.join(', ')}` : `Premio: ${prizeGoal.toUpperCase()}`;
+            `<b>${prizeGoal.toUpperCase()}</b> vinto da: ${winners.join(', ')}` : `Premio in palio: ${prizeGoal.toUpperCase()}`;
         
+        // Cambio premio automatico (Host)
         if(isHost && winners.length > 0 && idx < 4) {
-            setTimeout(() => updateDoc(doc(db, "games", currentRoom), { currentPrizeIndex: idx + 1 }), 4000);
+            setTimeout(() => updateDoc(doc(db, "games", currentRoom), { currentPrizeIndex: idx + 1 }), 5000);
         }
     });
 }
 
+// --- LOGICA VINCITE ---
 function checkWins(card) {
     const cells = Array.from(card.querySelectorAll('.cell-card'));
     const rows = [cells.slice(0,9), cells.slice(9,18), cells.slice(18,27)];
@@ -176,13 +186,41 @@ function checkBoardWins(drawn) {
             const h = r.filter(n => drawn.includes(n)).length;
             if(h > maxR) maxR = h;
         });
-        let p = hits === 15 ? 'tombola' : maxR === 5 ? 'cinquina' : maxR === 4 ? 'quaterna' : maxR === 3 ? 'terna' : maxR === 2 ? 'ambo' : null;
-        if(PRIZE_NAMES.indexOf(p) > PRIZE_NAMES.indexOf(best)) best = p;
+        
+        let p = null;
+        if(hits === 15) p = 'tombola';
+        else if(maxR === 5) p = 'cinquina';
+        else if(maxR === 4) p = 'quaterna';
+        else if(maxR === 3) p = 'terna';
+        else if(maxR === 2) p = 'ambo';
+
+        if(p && PRIZE_NAMES.indexOf(p) > PRIZE_NAMES.indexOf(best)) best = p;
     });
     return best;
 }
 
-// --- EVENTI ---
+// --- AZIONI UI ---
+async function joinGame(rID, qty, isResume = false) {
+    currentRoom = rID;
+    localStorage.setItem('activeRoom', rID);
+    if(!isResume) localStorage.setItem(`cards_${rID}`, qty);
+
+    const snap = await getDoc(doc(db, "games", rID));
+    if(!snap.exists()) return alert("Stanza non trovata");
+    
+    isHost = snap.data().host === auth.currentUser.uid;
+    renderPlayerCards(qty);
+    initBoard();
+    
+    document.getElementById('display-room').innerText = rID;
+    if(isHost) {
+        document.getElementById('host-controls').classList.remove('hidden');
+        document.getElementById('btn-terminate').classList.remove('hidden');
+    }
+    showScreen('screen-game');
+    listenToGame();
+}
+
 document.getElementById('btn-login').onclick = () => signInWithPopup(auth, provider);
 document.getElementById('btn-logout').onclick = () => signOut(auth).then(() => location.reload());
 
@@ -193,20 +231,32 @@ document.getElementById('btn-create').onclick = async () => {
         winners: { ambo:[], terna:[], quaterna:[], cinquina:[], tombola:[] },
         currentPrizeIndex: 0
     });
-    joinGame(rID, 1, true);
+    joinGame(rID, 1);
 };
 
 document.getElementById('btn-join').onclick = () => {
     const rID = document.getElementById('input-room').value;
     const qty = parseInt(document.getElementById('input-qty').value) || 1;
-    if(rID) joinGame(rID, qty, false);
+    if(rID) joinGame(rID, qty);
 };
 
 document.getElementById('btn-extract').onclick = async () => {
     const snap = await getDoc(doc(db, "games", currentRoom));
     const drawn = snap.data().drawn || [];
-    let n; do { n = Math.floor(Math.random()*90)+1; } while(drawn.includes(n) && drawn.length < 90);
+    if(drawn.length >= 90) return;
+    let n; do { n = Math.floor(Math.random()*90)+1; } while(drawn.includes(n));
     await updateDoc(doc(db, "games", currentRoom), { drawn: arrayUnion(n) });
+};
+
+document.getElementById('btn-terminate').onclick = async () => {
+    if(confirm("Vuoi chiudere la partita per tutti?")) {
+        await updateDoc(doc(db, "games", currentRoom), { status: "finished" });
+    }
+};
+
+document.getElementById('btn-leave').onclick = () => {
+    localStorage.removeItem('activeRoom');
+    location.reload();
 };
 
 function listenToLobby() {
@@ -215,8 +265,14 @@ function listenToLobby() {
         list.innerHTML = '';
         snap.forEach(d => {
             const div = document.createElement('div');
-            div.innerHTML = `Stanza ${d.id} <button onclick="document.getElementById('input-room').value='${d.id}'">Seleziona</button>`;
+            div.className = 'lobby-item';
+            div.innerHTML = `Stanza ${d.id} <button onclick="document.getElementById('input-room').value='${d.id}'; document.getElementById('btn-join').click();">Entra</button>`;
             list.appendChild(div);
         });
     });
+}
+
+function showScreen(id) {
+    document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
 }
