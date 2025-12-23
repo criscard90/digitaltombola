@@ -408,27 +408,42 @@ function showScreen(id) {
     document.getElementById(id).classList.remove('hidden');
 }
 
-// Funzione per abbandonare la partita (Giocatore)
+// --- LOGICA BOTTONI AZIONE ---
+
+// Funzione Abbandona (per il giocatore)
 document.getElementById('btn-leave').onclick = () => {
-    if (confirm("Vuoi davvero abbandonare la partita?")) {
-        localStorage.removeItem('activeRoom');
-        location.reload(); // Torna al menu principale
-    }
+    // Rimuoviamo i riferimenti locali così al refresh non rientra in partita
+    localStorage.removeItem('activeRoom');
+    const room = currentRoom;
+    if (room) localStorage.removeItem(`cards_${room}`);
+    
+    // Semplice reload per tornare alla schermata menu
+    location.reload();
 };
 
-// Funzione per chiudere la stanza (Solo Host)
+// Funzione Chiudi Stanza (solo per l'Host)
 document.getElementById('btn-terminate').onclick = async () => {
-    if (confirm("Sei l'Host. Vuoi chiudere definitivamente la stanza per tutti?")) {
+    if (!currentRoom) return;
+
+    const conferma = confirm("Sei l'Host: chiudendo la stanza la partita terminerà per TUTTI. Procedere?");
+    
+    if (conferma) {
         try {
-            // Aggiorna lo stato sul database per terminare la partita per tutti
+            // Aggiorniamo lo stato su Firebase a "finished"
+            // Questo attiverà l'alert "Partita terminata!" in listenToGame() per tutti i player
             await updateDoc(doc(db, "games", currentRoom), {
                 status: "finished"
             });
+
+            // Pulizia locale
             localStorage.removeItem('activeRoom');
+            localStorage.removeItem(`cards_${currentRoom}`);
+            
+            // Ricarica per tornare al menu
             location.reload();
         } catch (e) {
-            console.error("Errore durante la chiusura:", e);
-            alert("Errore nella chiusura della stanza.");
+            console.error("Errore durante la chiusura della stanza:", e);
+            alert("Non è stato possibile chiudere la stanza sul server.");
         }
     }
 };
