@@ -291,7 +291,7 @@ function checkBoardWins(drawn, targetPrize) {
 }
 
 // --- AZIONI ---
-document.getElementById('btn-create').onclick = async () => {
+document.getElementById('btn-create').addEventListener('click', async () => {
     const cost = parseFloat(document.getElementById('input-cost').value) || 1.0;
     const rID = Math.floor(1000 + Math.random() * 9000).toString();
     await setDoc(doc(db, "games", rID), {
@@ -300,7 +300,7 @@ document.getElementById('btn-create').onclick = async () => {
         currentPrizeIndex: 0, cardCost: cost, totalCardsSold: 6, players: [{name: auth.currentUser.displayName, cards: 6}]  // Il tabellone ha 6 cartelle, il host paga per loro
     });
     joinGame(rID, 0);
-};
+});
 
 async function joinGame(rID, qty, isResume = false) {
     if(!rID) return;
@@ -332,11 +332,11 @@ async function joinGame(rID, qty, isResume = false) {
     listenToGame();
 }
 
-document.getElementById('btn-login').onclick = () => signInWithPopup(auth, provider);
-document.getElementById('btn-logout').onclick = () => signOut(auth).then(() => location.reload());
-document.getElementById('btn-join').onclick = () => joinGame(document.getElementById('input-room').value, parseInt(document.getElementById('input-qty').value)||1);
+document.getElementById('btn-login').addEventListener('click', () => signInWithPopup(auth, provider));
+document.getElementById('btn-logout').addEventListener('click', () => signOut(auth).then(() => location.reload()));
+document.getElementById('btn-join').addEventListener('click', () => joinGame(document.getElementById('input-room').value, parseInt(document.getElementById('input-qty').value)||1));
 
-document.getElementById('btn-extract').onclick = async () => {
+document.getElementById('btn-extract').addEventListener('click', async () => {
     const btn = document.getElementById('btn-extract');
     if(btn.disabled) return;
     btn.disabled = true;
@@ -346,19 +346,19 @@ document.getElementById('btn-extract').onclick = async () => {
     let n; do { n = Math.floor(Math.random()*90)+1; } while(drawn.includes(n));
     await updateDoc(doc(db, "games", currentRoom), { drawn: arrayUnion(n) });
     setTimeout(() => btn.disabled = false, 2000);
-};
+});
 
-document.getElementById('btn-leave').onclick = () => {
+document.getElementById('btn-leave').addEventListener('click', () => {
     localStorage.removeItem('activeRoom');
     location.reload();
-};
+});
 
-document.getElementById('btn-terminate').onclick = async () => {
+document.getElementById('btn-terminate').addEventListener('click', async () => {
     if(confirm("Chiudere la stanza per tutti?")) {
         await updateDoc(doc(db, "games", currentRoom), { status: "finished" });
         location.reload();
     }
-};
+});
 
 function listenToLobby() {
     onSnapshot(query(collection(db, "games"), where("status", "==", "playing"), limit(5)), (snap) => {
