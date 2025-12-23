@@ -3,49 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tombola Pro PWA</title>
+    <title>Tombola PWA Pro</title>
+    <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <style>
-        :root { --bg: #121212; --card: #1e1e1e; --accent: #ffcc00; --text: #e0e0e0; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; justify-content: center; }
-        #app { width: 100%; max-width: 500px; padding: 20px; text-align: center; }
-        .hidden { display: none !important; }
-        
-        /* UI Elements */
-        button { background: var(--accent); border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; margin: 10px 0; width: 100%; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #222; color: white; box-sizing: border-box; }
-        
-        /* Tabellone */
-        #main-board { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; margin-top: 20px; }
-        .cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: var(--card); border-radius: 4px; font-size: 0.8rem; border: 1px solid #333; }
-        .cell.drawn { background: var(--accent); color: black; font-weight: bold; transform: scale(1.1); transition: 0.3s; box-shadow: 0 0 10px var(--accent); }
-
-        /* Estrazione Animata */
-        #last-number { font-size: 5rem; font-weight: bold; color: var(--accent); margin: 20px 0; min-height: 120px; text-shadow: 0 0 20px rgba(255,204,0,0.5); }
-    </style>
 </head>
 <body>
     <div id="app">
-        <div id="screen-auth">
-            <h1>Tombola Pro</h1>
-            <button id="btn-login">Accedi con Google</button>
-        </div>
+        <section id="screen-auth">
+            <h1>Tombola Digitale</h1>
+            <button id="btn-login" class="btn-main">Accedi con Google</button>
+        </section>
 
-        <div id="screen-menu" class="hidden">
-            <h2>Benvenuto <span id="user-display-name"></span></h2>
-            <button id="btn-create">Crea Nuova Partita</button>
-            <div style="margin: 20px 0;">oppure</div>
-            <input type="text" id="input-room" placeholder="Codice Stanza (es. 1234)">
-            <button id="btn-join">Unisciti</button>
-        </div>
+        <section id="screen-menu" class="hidden">
+            <h2>Ciao, <span id="user-name"></span></h2>
+            <button id="btn-create" class="btn-secondary">Crea Tabellone (Host)</button>
+            <div class="separator">Oppure unisciti</div>
+            <input type="number" id="input-room" placeholder="Codice Stanza">
+            <input type="number" id="input-qty" placeholder="Quante cartelle? (1-6)" min="1" max="6">
+            <button id="btn-join" class="btn-main">Entra in Partita</button>
+        </section>
 
-        <div id="screen-game" class="hidden">
-            <h3>Stanza: <span id="room-id-display"></span></h3>
+        <section id="screen-config" class="hidden">
+            <h2>Configura Premi</h2>
+            <div class="config-box">
+                <label>Prezzo Cartella (€)</label>
+                <input type="number" id="cfg-price" value="1" step="0.5">
+            </div>
+            <div id="prize-summary">
+                <p>Cartelle vendute: <span id="total-cards-count">0</span></p>
+                <p>Montepremi: <strong><span id="total-pot">0</span>€</strong></p>
+            </div>
+            <button id="btn-start" class="btn-main">Inizia Estrazione</button>
+        </section>
+
+        <section id="screen-game" class="hidden">
+            <div class="game-header">
+                <span>Stanza: <b id="display-room"></b></span>
+                <span id="prize-name">Premio: Ambo</span>
+            </div>
+            
             <div id="last-number">--</div>
-            <button id="btn-extract" class="hidden">ESTRAI NUMERO</button>
-            <div id="main-board"></div>
-            <button onclick="location.reload()" style="background: #444; color: white; margin-top: 30px;">Esci</button>
-        </div>
+
+            <div id="host-controls" class="hidden">
+                <button id="btn-extract" class="btn-main">ESTRAI NUMERO</button>
+            </div>
+
+            <div id="player-area">
+                <div id="my-cards-container"></div>
+            </div>
+
+            <div id="board-container" class="hidden">
+                <div id="main-board"></div>
+            </div>
+        </section>
     </div>
 
     <script type="module" src="app.js"></script>

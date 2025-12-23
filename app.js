@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBKHBssfqhV1yn6R7s-I7qE9SvB2rVUmO8",
@@ -20,97 +20,139 @@ const provider = new GoogleAuthProvider();
 let currentRoom = null;
 let isHost = false;
 
+// --- UTILS: GENERAZIONE CARTELLE (Classica: 15 numeri su 3 righe) ---
+function createTombolaCard() {
+    let card = Array(27).fill(null);
+    let positions = [];
+    for(let r=0; r<3; r++) {
+        let rowPos = [];
+        while(rowPos.length < 5) {
+            let p = Math.floor(Math.random() * 9);
+            if(!rowPos.includes(p)) rowPos.push(p);
+        }
+        rowPos.forEach(p => positions.push(r * 9 + p));
+    }
+    
+    positions.forEach(pos => {
+        let col = pos % 9;
+        let min = col * 10 + 1;
+        let max = col * 10 + 10;
+        card[pos] = Math.floor(Math.random() * (max - min + 1)) + min;
+    });
+    return card;
+}
+
 // --- GESTIONE SCHERMATE ---
 function showScreen(id) {
-    document.querySelectorAll('#app > div').forEach(div => div.classList.add('hidden'));
+    document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
 }
 
 // --- AUTH ---
 document.getElementById('btn-login').onclick = () => signInWithPopup(auth, provider);
-
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        document.getElementById('user-display-name').innerText = user.displayName;
+        document.getElementById('user-name').innerText = user.displayName;
         showScreen('screen-menu');
-    } else {
-        showScreen('screen-auth');
-    }
+    } else { showScreen('screen-auth'); }
 });
 
-// --- LOGICA GIOCO ---
-async function setupGame(roomID, hostFlag) {
-    currentRoom = roomID;
-    isHost = hostFlag;
-    document.getElementById('room-id-display').innerText = roomID;
-    
-    if (isHost) document.getElementById('btn-extract').classList.remove('hidden');
-    
-    initBoard();
-    showScreen('screen-game');
-    listenToGame(roomID);
-}
-
-// Crea Stanza
+// --- LOGICA HOST ---
 document.getElementById('btn-create').onclick = async () => {
-    const rID = Math.floor(1000 + Math.random() * 9000).toString();
-    await setDoc(doc(db, "games", rID), {
+    currentRoom = Math.floor(1000 + Math.random() * 9000).toString();
+    isHost = true;
+    await setDoc(doc(db, "games", currentRoom), {
         host: auth.currentUser.uid,
         drawn: [],
-        createdAt: Date.now()
+        totalCards: 0,
+        price: 1,
+        status: "open"
     });
-    setupGame(rID, true);
+    document.getElementById('display-room').innerText = currentRoom;
+    showScreen('screen-config');
+    initRealtimeConfig();
 };
 
-// Unisciti a Stanza
+function initRealtimeConfig() {
+    onSnapshot(doc(db, "games", currentRoom), (snap) => {
+        const data = snap.data();
+        const price = parseFloat(document.getElementById('cfg-price').value);
+        const total = data.totalCards * price;
+        document.getElementById('total-cards-count').innerText = data.totalCards;
+        document.getElementById('total-pot').innerText = total.toFixed(2);
+    });
+}
+
+document.getElementById('btn-start').onclick = () => {
+    showScreen('screen-game');
+    document.getElementById('host-controls').classList.remove('hidden');
+    document.getElementById('board-container').classList.remove('hidden');
+    initBoard();
+    listenToGame();
+};
+
+// --- LOGICA GIOCATORE ---
 document.getElementById('btn-join').onclick = async () => {
     const rID = document.getElementById('input-room').value;
+    const qty = parseInt(document.getElementById('input-qty').value) || 1;
+    
     const snap = await getDoc(doc(db, "games", rID));
-    if (snap.exists()) setupGame(rID, false);
-    else alert("Stanza non trovata!");
+    if (snap.exists()) {
+        currentRoom = rID;
+        await updateDoc(doc(db, "games", rID), { totalCards: increment(qty) });
+        
+        const container = document.getElementById('my-cards-container');
+        for(let i=0; i<qty; i++) {
+            const cardData = createTombolaCard();
+            const cardEl = document.createElement('div');
+            cardEl.className = 'tombola-card';
+            cardData.forEach(num => {
+                const cell = document.createElement('div');
+                cell.className = num ? `cell-card n-${num}` : 'cell-card empty';
+                cell.innerText = num || '';
+                cardEl.appendChild(cell);
+            });
+            container.appendChild(cardEl);
+        }
+        document.getElementById('display-room').innerText = rID;
+        showScreen('screen-game');
+        listenToGame();
+    }
 };
 
-// Inizializza Tabellone visivo
+// --- CORE GIOCO ---
 function initBoard() {
-    const board = document.getElementById('main-board');
-    board.innerHTML = '';
-    for (let i = 1; i <= 90; i++) {
-        const div = document.createElement('div');
-        div.className = 'cell';
-        div.id = `cell-${i}`;
-        div.innerText = i;
-        board.appendChild(div);
+    const b = document.getElementById('main-board');
+    for(let i=1; i<=90; i++) {
+        const d = document.createElement('div');
+        d.className = 'b-cell'; d.id = `b-${i}`; d.innerText = i;
+        b.appendChild(d);
     }
 }
 
-// Estrazione (Solo Host)
 document.getElementById('btn-extract').onclick = async () => {
     const snap = await getDoc(doc(db, "games", currentRoom));
-    const drawn = snap.data().drawn || [];
-    
-    if (drawn.length >= 90) return alert("Numeri finiti!");
-
-    let num;
-    do { num = Math.floor(Math.random() * 90) + 1; } while (drawn.includes(num));
-
-    await updateDoc(doc(db, "games", currentRoom), {
-        drawn: arrayUnion(num)
-    });
+    const drawn = snap.data().drawn;
+    if(drawn.length >= 90) return;
+    let n; do { n = Math.floor(Math.random() * 90) + 1; } while(drawn.includes(n));
+    await updateDoc(doc(db, "games", currentRoom), { drawn: arrayUnion(n) });
 };
 
-// Ascolto Real-time
-function listenToGame(roomID) {
-    onSnapshot(doc(db, "games", roomID), (doc) => {
-        const data = doc.data();
-        if (!data) return;
-
+function listenToGame() {
+    onSnapshot(doc(db, "games", currentRoom), (snap) => {
+        const data = snap.data();
+        if(!data) return;
+        
         data.drawn.forEach(num => {
-            const el = document.getElementById(`cell-${num}`);
-            if (el) el.classList.add('drawn');
+            // Autotap su cartelle
+            document.querySelectorAll(`.n-${num}`).forEach(el => el.classList.add('hit'));
+            // Aggiorna tabellone host
+            const bCell = document.getElementById(`b-${num}`);
+            if(bCell) bCell.classList.add('drawn');
         });
 
-        if (data.drawn.length > 0) {
-            document.getElementById('last-number').innerText = data.drawn[data.drawn.length - 1];
+        if(data.drawn.length > 0) {
+            document.getElementById('last-number').innerText = data.drawn[data.drawn.length-1];
         }
     });
 }
