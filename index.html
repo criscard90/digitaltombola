@@ -16,30 +16,37 @@
 
         <section id="screen-menu" class="hidden">
             <h2>Ciao, <span id="user-name"></span></h2>
-            <button id="btn-create" class="btn-secondary">Crea Tabellone (Host)</button>
+            <button id="btn-create" class="btn-secondary">Crea Nuova Stanza</button>
             <div class="separator">Oppure unisciti</div>
             <input type="number" id="input-room" placeholder="Codice Stanza">
             <input type="number" id="input-qty" placeholder="Quante cartelle? (1-6)" min="1" max="6">
-            <button id="btn-join" class="btn-main">Entra in Partita</button>
+            <button id="btn-join" class="btn-main">Entra e Compra</button>
         </section>
 
         <section id="screen-config" class="hidden">
-            <h2>Configura Premi</h2>
+            <h2>Configurazione Stanza <span id="conf-room-id"></span></h2>
             <div class="config-box">
-                <label>Prezzo Cartella (€)</label>
+                <label>Prezzo singola cartella (€)</label>
                 <input type="number" id="cfg-price" value="1" step="0.5">
             </div>
             <div id="prize-summary">
-                <p>Cartelle vendute: <span id="total-cards-count">0</span></p>
-                <p>Montepremi: <strong><span id="total-pot">0</span>€</strong></p>
+                <p>Cartelle prenotate: <b id="total-cards-count">0</b></p>
+                <p>Montepremi Totale: <b id="total-pot">0</b>€</p>
+                <div class="prize-grid">
+                    <span>Ambo: <i id="p-ambo">0</i>€</span>
+                    <span>Terna: <i id="p-terna">0</i>€</span>
+                    <span>Quaterna: <i id="p-quat">0</i>€</span>
+                    <span>Cinquina: <i id="p-cinq">0</i>€</span>
+                    <span>Tombola: <i id="p-tomb">0</i>€</span>
+                </div>
             </div>
-            <button id="btn-start" class="btn-main">Inizia Estrazione</button>
+            <button id="btn-start" class="btn-main">CONGELA PREZZI E INIZIA</button>
         </section>
 
         <section id="screen-game" class="hidden">
             <div class="game-header">
-                <span>Stanza: <b id="display-room"></b></span>
-                <span id="prize-name">Premio: Ambo</span>
+                <div id="info-prizes-live">Palio: <b id="current-pot-display">0</b>€</div>
+                <span>Codice: <b id="display-room"></b></span>
             </div>
             
             <div id="last-number">--</div>
@@ -53,6 +60,7 @@
             </div>
 
             <div id="board-container" class="hidden">
+                <h4>Tabellone</h4>
                 <div id="main-board"></div>
             </div>
         </section>
