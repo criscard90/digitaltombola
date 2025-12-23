@@ -372,8 +372,12 @@ function listenToLobby() {
             const div = document.createElement('div');
             div.className = 'lobby-item';
             div.innerHTML = `<span>Stanza <b>${d.id}</b> (${d.data().cardCost}€)</span>
-                             <button onclick="openJoinModal('${d.id}')">Entra</button>`;
+                             <button data-room="${d.id}">Entra</button>`;
             list.appendChild(div);
+        });
+        // Add event listeners after rendering
+        document.querySelectorAll('[data-room]').forEach(btn => {
+            btn.addEventListener('click', () => openJoinModal(btn.getAttribute('data-room')));
         });
     });
 }
