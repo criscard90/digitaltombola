@@ -404,8 +404,16 @@ function listenToLobby() {
 }
 
 function openJoinModal(roomId) {
-    document.getElementById('modal-room-code').innerText = roomId;
-    document.getElementById('join-modal').classList.remove('hidden');
+    const storedCardsData = localStorage.getItem(`cardsData_${roomId}`);
+    if(storedCardsData) {
+        // Already joined, resume
+        const qty = parseInt(localStorage.getItem(`cards_${roomId}`)) || 1;
+        joinGame(roomId, qty, true);
+    } else {
+        // Show modal to choose qty
+        document.getElementById('modal-room-code').innerText = roomId;
+        document.getElementById('join-modal').classList.remove('hidden');
+    }
 }
 
 window.openJoinModal = openJoinModal;
