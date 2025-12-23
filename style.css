@@ -134,14 +134,32 @@ button { cursor: pointer; border: none; font-family: inherit; transition: 0.2s; 
 }
 
 #winner-overlay {
-    transition: opacity 0.5s ease-in-out; /* Transizione morbida */
-    display: flex; /* Assicurati che sia flex quando non è hidden */
+    /* Posizionamento fisso per coprire tutto lo schermo */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    
+    /* Centramento perfetto del contenuto */
+    display: flex;
+    justify-content: center; /* Centra orizzontalmente */
+    align-items: center;     /* Centra verticalmente */
+    
+    /* Sfondo e stile */
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 9999; /* Assicura che sia sopra a tutto */
+    
+    /* Transizione fluida */
+    transition: opacity 0.5s ease-in-out;
 }
 
 #winner-overlay.hidden {
     opacity: 0;
-    pointer-events: none; /* Impedisce di cliccare mentre è invisibile */
-    display: none; /* Opzionale, se vuoi rimuoverlo del tutto dal layout */
+    pointer-events: none;
+    /* Usiamo visibility invece di display:none per non rompere la transizione */
+    visibility: hidden; 
 }
 
 @keyframes modalPop {
