@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <title>Tombola Pro</title>
+</head>
+<body>
+    <div id="app">
+        <section id="login-screen">
+            <h1>Tombola Digitale</h1>
+            <button id="btn-login">Accedi con Google</button>
+        </section>
+
+        <section id="menu-screen" class="hidden">
+            <p>Benvenuto, <span id="user-name"></span>!</p>
+            <button id="btn-create-game">Crea Tabellone</button>
+            <hr>
+            <input type="text" id="game-code" placeholder="Codice Stanza">
+            <button id="btn-join-game">Unisciti alla Partita</button>
+        </section>
+
+        <section id="game-screen" class="hidden">
+            <div id="game-info">Codice: <b id="display-code"></b></div>
+            <div id="main-board"></div> </section>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
