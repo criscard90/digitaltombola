@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, onSnapshot, collection, query, where, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, onSnapshot, collection, query, where, limit, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBKHBssfqhV1yn6R7s-I7qE9SvB2rVUmO8",
@@ -19,20 +19,19 @@ const provider = new GoogleAuthProvider();
 
 let currentRoom = null;
 let isHost = false;
-let lastDrawnLength = 0; // Per tracciare se è arrivato un numero nuovo
+let lastDrawnLength = 0;
 let lastWinnerKey = "";
 
 const PRIZE_ORDER = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola'];
+const PRIZE_PERCENTAGES = { ambo: 0.1, terna: 0.15, quaterna: 0.2, cinquina: 0.25, tombola: 0.3 };
 
-// BLOCCHI LOGICI (come vengono calcolate le vincite)
-// E VISIVI (come vengono mostrati a schermo)
 const BOARD_BLOCKS = [
-    [1,2,3,4,5, 11,12,13,14,15, 21,22,23,24,25],   // Cartella 1
-    [6,7,8,9,10, 16,17,18,19,20, 26,27,28,29,30],  // Cartella 2
-    [31,32,33,34,35, 41,42,43,44,45, 51,52,53,54,55], // Cartella 3
-    [36,37,38,39,40, 46,47,48,49,50, 56,57,58,59,60], // Cartella 4
-    [61,62,63,64,65, 71,72,73,74,75, 81,82,83,84,85], // Cartella 5
-    [66,67,68,69,70, 76,77,78,79,80, 86,87,88,89,90]  // Cartella 6
+    [1,2,3,4,5, 11,12,13,14,15, 21,22,23,24,25],
+    [6,7,8,9,10, 16,17,18,19,20, 26,27,28,29,30],
+    [31,32,33,34,35, 41,42,43,44,45, 51,52,53,54,55],
+    [36,37,38,39,40, 46,47,48,49,50, 56,57,58,59,60],
+    [61,62,63,64,65, 71,72,73,74,75, 81,82,83,84,85],
+    [66,67,68,69,70, 76,77,78,79,80, 86,87,88,89,90]
 ];
 
 // --- AUTH ---
@@ -46,9 +45,6 @@ onAuthStateChanged(auth, (user) => {
         showScreen('screen-auth');
     }
 });
-
-// ... (Funzioni renderPlayerCards, checkActiveSession identiche a prima, ometti per brevità ma devono esserci) ...
-// INCLUDI QUI checkActiveSession e renderPlayerCards (uguali al file precedente)
 
 async function checkActiveSession() {
     const saved = localStorage.getItem('activeRoom');
@@ -65,10 +61,161 @@ async function checkActiveSession() {
     }
 }
 
+// --- UI PREMI & ECONOMIA ---
+function updatePrizeUI(data) {
+    const totalPot = (data.cardCost || 0) * (data.totalCardsSold || 0);
+    document.getElementById('total-pot').innerText = `€${totalPot.toFixed(2)}`;
+    
+    const container = document.getElementById('prizes-list');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    PRIZE_ORDER.forEach((p, i) => {
+        const val = (totalPot * PRIZE_PERCENTAGES[p]).toFixed(2);
+        const div = document.createElement('div');
+        div.className = `prize-item ${data.currentPrizeIndex === i ? 'active' : ''}`;
+        div.innerHTML = `<label>${p}</label><span>€${val}</span>`;
+        container.appendChild(div);
+    });
+}
+
+// --- LOGICA DI GIOCO ---
+function initBoard() {
+    const grid = document.getElementById('main-board-grid');
+    grid.innerHTML = '';
+    BOARD_BLOCKS.forEach((blockNumbers) => {
+        const blockDiv = document.createElement('div');
+        blockDiv.className = 'board-card-block';
+        const sortedNums = [...blockNumbers].sort((a,b) => a-b);
+        sortedNums.forEach(num => {
+            const cell = document.createElement('div');
+            cell.className = 'b-cell';
+            cell.id = `b-${num}`;
+            cell.innerText = num;
+            blockDiv.appendChild(cell);
+        });
+        grid.appendChild(blockDiv);
+    });
+}
+
+function listenToGame() {
+    onSnapshot(doc(db, "games", currentRoom), async (snap) => {
+        const data = snap.data();
+        if(!data || data.status === "finished") {
+            localStorage.removeItem('activeRoom');
+            location.reload();
+            return;
+        }
+
+        updatePrizeUI(data);
+
+        const serverDrawn = data.drawn || [];
+        const lastNum = serverDrawn[serverDrawn.length - 1];
+
+        if (serverDrawn.length > lastDrawnLength) {
+            lastDrawnLength = serverDrawn.length;
+            await animateExtraction(lastNum);
+            updateBoardUI(serverDrawn);
+        } else {
+            updateBoardUI(serverDrawn);
+            document.getElementById('last-number').innerText = lastNum || "--";
+        }
+
+        handlePrizes(data);
+    });
+}
+
+function animateExtraction(finalNumber) {
+    return new Promise(resolve => {
+        const el = document.getElementById('last-number');
+        el.classList.add('rolling');
+        let count = 0;
+        const max = 15;
+        const interval = setInterval(() => {
+            el.innerText = Math.floor(Math.random() * 90) + 1;
+            count++;
+            if(count >= max) {
+                clearInterval(interval);
+                el.innerText = finalNumber;
+                el.classList.remove('rolling');
+                resolve();
+            }
+        }, 80);
+    });
+}
+
+function updateBoardUI(drawnNumbers) {
+    document.querySelectorAll('.cell-card.hit, .b-cell.drawn').forEach(el => el.classList.remove('hit', 'drawn'));
+    drawnNumbers.forEach(n => {
+        document.querySelectorAll(`.n-${n}`).forEach(el => el.classList.add('hit'));
+        const bCell = document.getElementById(`b-${n}`);
+        if(bCell) bCell.classList.add('drawn');
+    });
+}
+
+async function handlePrizes(data) {
+    const totalPot = (data.cardCost || 0) * (data.totalCardsSold || 0);
+    const idx = data.currentPrizeIndex ?? 0;
+    const prizeGoal = PRIZE_ORDER[idx];
+    const winners = data.winners[prizeGoal] || [];
+    
+    const totalPrizeVal = totalPot * PRIZE_PERCENTAGES[prizeGoal];
+    const individualWin = winners.length > 0 ? (totalPrizeVal / winners.length).toFixed(2) : totalPrizeVal.toFixed(2);
+
+    let won = false;
+    document.querySelectorAll('.tombola-card').forEach(c => {
+        if(checkCardWin(c, prizeGoal)) won = true;
+    });
+
+    if(isHost && checkBoardWins(data.drawn || [], prizeGoal) && !winners.includes("TABELLONE")) {
+        await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion("TABELLONE") });
+    }
+
+    if(won && !winners.includes(auth.currentUser.displayName)) {
+        await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion(auth.currentUser.displayName) });
+    }
+
+    const pAnnouncer = document.getElementById('prize-announcer');
+    if (winners.length > 0) {
+        pAnnouncer.innerHTML = `Vinti: €${totalPrizeVal.toFixed(2)} (${winners.join(', ')})`;
+        pAnnouncer.style.background = "#10b981";
+        
+        showWinnerOverlay(prizeGoal, winners, individualWin);
+
+        if(isHost && idx < 4) {
+             setTimeout(async () => {
+                 const snapCheck = await getDoc(doc(db, "games", currentRoom));
+                 if(snapCheck.data().currentPrizeIndex === idx) {
+                     await updateDoc(doc(db, "games", currentRoom), { currentPrizeIndex: idx + 1 });
+                 }
+             }, 8000);
+        }
+    } else {
+        pAnnouncer.innerHTML = `In palio: €${totalPrizeVal.toFixed(2)} (${prizeGoal.toUpperCase()})`;
+        pAnnouncer.style.background = "";
+    }
+}
+
+function showWinnerOverlay(prize, winnersList, amount) {
+    const currentKey = `${prize}-${winnersList.length}`;
+    if(lastWinnerKey === currentKey) return;
+    lastWinnerKey = currentKey;
+
+    const overlay = document.getElementById('winner-overlay');
+    document.getElementById('win-title').innerText = prize.toUpperCase() + "!";
+    document.getElementById('win-names').innerHTML = `
+        <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 10px;">Vinti €${amount}!</div>
+        <small>Vincitori: ${winnersList.join(", ")}</small>
+    `;
+    
+    overlay.classList.remove('hidden');
+    setTimeout(() => { overlay.classList.add('hidden'); }, 7000);
+}
+
+// --- CARTELLE ---
 function renderPlayerCards(qty) {
     const container = document.getElementById('my-cards-container');
     container.innerHTML = '';
-    
     for(let i=0; i<qty; i++) {
         const data = Array(27).fill(null);
         const used = new Set();
@@ -80,15 +227,10 @@ function renderPlayerCards(qty) {
             }
             ps.sort().forEach(p => {
                 let min = p === 0 ? 1 : (p * 10);
-                if (p===0) min = 1; else min = p*10;
                 let max = (p * 10) + 9;
                 if (p===8) max = 90;
                 let n; 
-                let safeCount = 0;
-                do { 
-                    n = Math.floor(Math.random() * (max - min + 1)) + min; 
-                    safeCount++;
-                } while(used.has(n) && safeCount < 100);
+                do { n = Math.floor(Math.random() * (max - min + 1)) + min; } while(used.has(n));
                 used.add(n); 
                 data[r*9+p] = n;
             });
@@ -105,192 +247,6 @@ function renderPlayerCards(qty) {
     }
 }
 
-// --- NUOVA INIZIALIZZAZIONE TABELLONE (VISIVA) ---
-function initBoard() {
-    const grid = document.getElementById('main-board-grid');
-    grid.innerHTML = '';
-
-    // Creiamo 6 blocchi visivi separati
-    BOARD_BLOCKS.forEach((blockNumbers, index) => {
-        const blockDiv = document.createElement('div');
-        blockDiv.className = 'board-card-block';
-        
-        // Ordiniamo i numeri per visualizzarli bene nel blocco
-        // Nota: I blocchi sono definiti logicamente per colonna, ma visivamente li vogliamo in ordine crescente
-        // Per semplicità visiva, mostriamo i numeri del blocco ordinati
-        const sortedNums = [...blockNumbers].sort((a,b) => a-b);
-        
-        sortedNums.forEach(num => {
-            const cell = document.createElement('div');
-            cell.className = 'b-cell';
-            cell.id = `b-${num}`;
-            cell.innerText = num;
-            blockDiv.appendChild(cell);
-        });
-
-        grid.appendChild(blockDiv);
-    });
-}
-
-// --- LOGICA DI GIOCO ---
-function listenToGame() {
-    onSnapshot(doc(db, "games", currentRoom), async (snap) => {
-        const data = snap.data();
-        if(!data || data.status === "finished") {
-            localStorage.removeItem('activeRoom');
-            alert("Partita terminata!");
-            location.reload();
-            return;
-        }
-
-        const serverDrawn = data.drawn || [];
-        const lastNum = serverDrawn[serverDrawn.length - 1];
-
-        // RILEVA NUOVO NUMERO E FAI ANIMAZIONE SUSPENSE
-        if (serverDrawn.length > lastDrawnLength) {
-            lastDrawnLength = serverDrawn.length;
-            
-            // 1. Avvia animazione suspense
-            await animateExtraction(lastNum);
-            
-            // 2. Alla fine dell'animazione, aggiorna l'interfaccia
-            updateBoardUI(serverDrawn);
-        } else if (serverDrawn.length === 0) {
-            // Reset iniziale
-            document.getElementById('last-number').innerText = "--";
-            updateBoardUI([]);
-        } else {
-            // Sincronizzazione senza animazione (es. refresh pagina)
-            updateBoardUI(serverDrawn);
-            document.getElementById('last-number').innerText = lastNum;
-        }
-
-        // GESTIONE VINCITE (Identica ma con Popup)
-        handlePrizes(data);
-    });
-}
-
-// Funzione di Animazione Suspense
-function animateExtraction(finalNumber) {
-    return new Promise(resolve => {
-        const el = document.getElementById('last-number');
-        el.classList.add('rolling'); // Aggiunge effetto zoom/colore
-        
-        let count = 0;
-        const max = 20; // Quanti numeri fake mostrare
-        
-        const interval = setInterval(() => {
-            el.innerText = Math.floor(Math.random() * 90) + 1;
-            count++;
-            if(count >= max) {
-                clearInterval(interval);
-                el.innerText = finalNumber;
-                el.classList.remove('rolling');
-                resolve(); // Sblocca l'aggiornamento del tabellone
-            }
-        }, 80); // Velocità cambio numeri
-    });
-}
-
-function updateBoardUI(drawnNumbers) {
-    // Pulisci tutto
-    document.querySelectorAll('.cell-card.hit, .b-cell.drawn').forEach(el => el.classList.remove('hit', 'drawn'));
-    
-    // Ricolora
-    drawnNumbers.forEach(n => {
-        // Cartelle giocatore
-        document.querySelectorAll(`.n-${n}`).forEach(el => el.classList.add('hit'));
-        // Tabellone
-        const bCell = document.getElementById(`b-${n}`);
-        if(bCell) bCell.classList.add('drawn');
-    });
-}
-
-async function handlePrizes(data) {
-    const idx = data.currentPrizeIndex ?? 0;
-    const prizeGoal = PRIZE_ORDER[idx];
-    const winners = data.winners[prizeGoal] || [];
-    
-    // 1. Logica vincita utente locale
-    let won = false;
-    document.querySelectorAll('.tombola-card').forEach(c => {
-        if(checkCardWin(c, prizeGoal)) won = true;
-    });
-
-    // 2. Logica vincita tabellone (Host)
-    if(isHost) {
-        if(checkBoardWins(data.drawn || [], prizeGoal) && !winners.includes("TABELLONE")) {
-            await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion("TABELLONE") });
-        }
-    }
-
-    // 3. Registra vincitore utente se non già presente
-    if(won && !winners.includes(auth.currentUser.displayName)) {
-        await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion(auth.currentUser.displayName) });
-    }
-
-    // 4. UI Annuncio e Overlay
-    const pAnnouncer = document.getElementById('prize-announcer');
-    if (winners.length > 0) {
-        pAnnouncer.innerHTML = `Vincitori: ${winners.join(', ')}`;
-        pAnnouncer.style.background = "#10b981";
-        pAnnouncer.style.color = "black";
-        
-        // Attiva l'overlay (la funzione internamente filtrerà i duplicati)
-        showWinnerOverlay(prizeGoal, winners);
-
-        // Gestione passaggio premio successivo (Solo Host)
-        if(isHost && idx < 4) {
-             setTimeout(() => {
-                 getDoc(doc(db, "games", currentRoom)).then(snapCheck => {
-                     // Passa al premio successivo solo se siamo ancora fermi allo stesso indice
-                     if(snapCheck.data().currentPrizeIndex === idx) {
-                         updateDoc(doc(db, "games", currentRoom), { currentPrizeIndex: idx + 1 });
-                     }
-                 });
-             }, 8000); // 8 secondi di attesa prima del prossimo premio
-        }
-    } else {
-        // Nessun vincitore ancora: mostra il premio in palio
-        pAnnouncer.innerHTML = `Si gioca per: <b>${prizeGoal.toUpperCase()}</b>`;
-        pAnnouncer.style.background = "";
-        pAnnouncer.style.color = "";
-        // Nota: Non nascondiamo l'overlay qui per evitare il "flash" durante i ricaricamenti
-    }
-}
-
-// Funzione Overlay Vincitore
-let lastShownPrize = "";
-// CORREZIONE ANIMAZIONE: Rimosso il flash, migliorata la persistenza
-function showWinnerOverlay(prize, winnersList) {
-    // Creiamo una chiave unica basata sul premio e sul numero di vincitori
-    const currentKey = `${prize}-${winnersList.length}`;
-    
-    // Se la chiave è uguale alla precedente, l'animazione è già in corso o è già stata mostrata
-    if(lastWinnerKey === currentKey) return;
-    lastWinnerKey = currentKey;
-
-    const overlay = document.getElementById('winner-overlay');
-    const winTitle = document.getElementById('win-title');
-    const winNames = document.getElementById('win-names');
-
-    // Imposta i testi
-    winTitle.innerText = prize.toUpperCase() + "!";
-    winNames.innerText = winnersList.join(", ");
-    
-    // Mostra l'overlay rimuovendo la classe hidden
-    overlay.classList.remove('hidden');
-    
-    // Se hai modificato il CSS come suggerito prima, 
-    // l'animazione popUp partirà in automatico.
-
-    // Nascondi automaticamente dopo 7 secondi per pulire lo schermo
-    setTimeout(() => {
-        overlay.classList.add('hidden');
-    }, 7000);
-}
-
-// --- HELPER DI VINCITA (CheckBoardWins & CheckCardWin uguali a prima) ---
 function checkCardWin(card, targetPrize) {
     const cells = Array.from(card.querySelectorAll('.cell-card'));
     const rows = [cells.slice(0,9), cells.slice(9,18), cells.slice(18,27)];
@@ -302,49 +258,52 @@ function checkCardWin(card, targetPrize) {
         totalHits += h;
     });
     if (targetPrize === 'tombola') return totalHits === 15;
-    if (targetPrize === 'cinquina') return maxHitsInRow >= 5;
-    if (targetPrize === 'quaterna') return maxHitsInRow >= 4;
-    if (targetPrize === 'terna') return maxHitsInRow >= 3;
-    if (targetPrize === 'ambo') return maxHitsInRow >= 2;
-    return false;
+    const targets = { ambo: 2, terna: 3, quaterna: 4, cinquina: 5 };
+    return maxHitsInRow >= targets[targetPrize];
 }
 
 function checkBoardWins(drawn, targetPrize) {
     for(let block of BOARD_BLOCKS) {
-        // Qui la logica controlla se il BLOCCO ha vinto
         const hits = block.filter(n => drawn.includes(n)).length;
-        // Simuliamo le righe nel blocco tabellone (che ora è visivamente 3 righe da 5)
-        // Dobbiamo mappare i numeri del blocco in righe per verificare ambo/terna ecc.
-        // Poiché BOARD_BLOCKS è un array piatto, simuliamo le righe prendendo indici
         const rows = [block.slice(0,5), block.slice(5,10), block.slice(10,15)];
         let maxR = 0;
         rows.forEach(r => {
             const h = r.filter(n => drawn.includes(n)).length;
             if(h > maxR) maxR = h;
         });
-
         if (targetPrize === 'tombola' && hits === 15) return true;
-        if (targetPrize === 'cinquina' && maxR >= 5) return true;
-        if (targetPrize === 'quaterna' && maxR >= 4) return true;
-        if (targetPrize === 'terna' && maxR >= 3) return true;
-        if (targetPrize === 'ambo' && maxR >= 2) return true;
+        const targets = { ambo: 2, terna: 3, quaterna: 4, cinquina: 5 };
+        if (maxR >= targets[targetPrize]) return true;
     }
     return false;
 }
 
 // --- AZIONI ---
+document.getElementById('btn-create').onclick = async () => {
+    const cost = parseFloat(document.getElementById('input-cost').value) || 1.0;
+    const rID = Math.floor(1000 + Math.random() * 9000).toString();
+    await setDoc(doc(db, "games", rID), {
+        host: auth.currentUser.uid, drawn: [], status: "playing",
+        winners: { ambo:[], terna:[], quaterna:[], cinquina:[], tombola:[] },
+        currentPrizeIndex: 0, cardCost: cost, totalCardsSold: 0
+    });
+    joinGame(rID, 0); 
+};
+
 async function joinGame(rID, qty, isResume = false) {
-    if(!rID) return alert("Inserisci codice");
+    if(!rID) return;
     const snap = await getDoc(doc(db, "games", rID));
-    if(!snap.exists()) { alert("Errore"); localStorage.removeItem('activeRoom'); return; }
+    if(!snap.exists()) return;
     
     currentRoom = rID;
-    localStorage.setItem('activeRoom', rID);
-    if(!isResume) localStorage.setItem(`cards_${rID}`, qty);
-
     isHost = snap.data().host === auth.currentUser.uid;
     
-    // CORREZIONE: Se è l'Host, nascondiamo l'area "Le tue cartelle" per evitare confusione
+    if(!isHost && !isResume) {
+        await updateDoc(doc(db, "games", rID), { totalCardsSold: increment(qty) });
+        localStorage.setItem(`cards_${rID}`, qty);
+    }
+    
+    localStorage.setItem('activeRoom', rID);
     if(isHost) {
         document.getElementById('player-area').classList.add('hidden');
         document.getElementById('host-controls').classList.remove('hidden');
@@ -354,7 +313,7 @@ async function joinGame(rID, qty, isResume = false) {
         renderPlayerCards(qty);
     }
 
-    initBoard(); 
+    initBoard();
     document.getElementById('display-room').innerText = rID;
     showScreen('screen-game');
     listenToGame();
@@ -362,52 +321,45 @@ async function joinGame(rID, qty, isResume = false) {
 
 document.getElementById('btn-login').onclick = () => signInWithPopup(auth, provider);
 document.getElementById('btn-logout').onclick = () => signOut(auth).then(() => location.reload());
-document.getElementById('btn-create').onclick = async () => {
-    const rID = Math.floor(1000 + Math.random() * 9000).toString();
-    await setDoc(doc(db, "games", rID), {
-        host: auth.currentUser.uid, drawn: [], status: "playing",
-        winners: { ambo:[], terna:[], quaterna:[], cinquina:[], tombola:[] },
-        currentPrizeIndex: 0
-    });
-    joinGame(rID, 1);
-};
 document.getElementById('btn-join').onclick = () => joinGame(document.getElementById('input-room').value, parseInt(document.getElementById('input-qty').value)||1);
 
 document.getElementById('btn-extract').onclick = async () => {
     const btn = document.getElementById('btn-extract');
-    if(btn.disabled) return; // Evita doppi click
+    if(btn.disabled) return;
     btn.disabled = true;
-    try {
-        const snap = await getDoc(doc(db, "games", currentRoom));
-        const drawn = snap.data().drawn || [];
-        if(drawn.length >= 90) return;
-        let n; do { n = Math.floor(Math.random()*90)+1; } while(drawn.includes(n));
-        await updateDoc(doc(db, "games", currentRoom), { drawn: arrayUnion(n) });
-    } catch(e) { console.error(e); }
-    setTimeout(() => btn.disabled = false, 2000); // Pausa tra estrazioni per godersi l'animazione
+    const snap = await getDoc(doc(db, "games", currentRoom));
+    const drawn = snap.data().drawn || [];
+    if(drawn.length >= 90) return;
+    let n; do { n = Math.floor(Math.random()*90)+1; } while(drawn.includes(n));
+    await updateDoc(doc(db, "games", currentRoom), { drawn: arrayUnion(n) });
+    setTimeout(() => btn.disabled = false, 2000);
 };
-document.getElementById('btn-leave').onclick = () => { localStorage.removeItem('activeRoom'); location.reload(); };
+
+document.getElementById('btn-leave').onclick = () => {
+    localStorage.removeItem('activeRoom');
+    location.reload();
+};
+
+document.getElementById('btn-terminate').onclick = async () => {
+    if(confirm("Chiudere la stanza per tutti?")) {
+        await updateDoc(doc(db, "games", currentRoom), { status: "finished" });
+        location.reload();
+    }
+};
 
 function listenToLobby() {
-    // Ascolta le partite attive (max 5)
     onSnapshot(query(collection(db, "games"), where("status", "==", "playing"), limit(5)), (snap) => {
         const list = document.getElementById('lobby-list');
         list.innerHTML = '';
-
-        // --- QUESTA È LA PARTE CHE MANCAVA ---
         if (snap.empty) {
-            list.innerHTML = '<div class="empty-msg">Nessuna partita pubblica trovata.<br>Creane una tu!</div>';
+            list.innerHTML = '<div class="empty-msg">Nessuna partita pubblica.</div>';
             return;
         }
-        // -------------------------------------
-
         snap.forEach(d => {
             const div = document.createElement('div');
             div.className = 'lobby-item';
-            div.innerHTML = `
-                <span>Stanza <b>${d.id}</b></span> 
-                <button onclick="document.getElementById('input-room').value='${d.id}'; document.getElementById('btn-join').click();">Entra</button>
-            `;
+            div.innerHTML = `<span>Stanza <b>${d.id}</b> (${d.data().cardCost}€)</span> 
+                             <button onclick="document.getElementById('input-room').value='${d.id}'; document.getElementById('btn-join').click();">Entra</button>`;
             list.appendChild(div);
         });
     });
@@ -417,43 +369,3 @@ function showScreen(id) {
     document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
 }
-
-// --- LOGICA BOTTONI AZIONE ---
-
-// Funzione Abbandona (per il giocatore)
-document.getElementById('btn-leave').onclick = () => {
-    // Rimuoviamo i riferimenti locali così al refresh non rientra in partita
-    localStorage.removeItem('activeRoom');
-    const room = currentRoom;
-    if (room) localStorage.removeItem(`cards_${room}`);
-    
-    // Semplice reload per tornare alla schermata menu
-    location.reload();
-};
-
-// Funzione Chiudi Stanza (solo per l'Host)
-document.getElementById('btn-terminate').onclick = async () => {
-    if (!currentRoom) return;
-
-    const conferma = confirm("Sei l'Host: chiudendo la stanza la partita terminerà per TUTTI. Procedere?");
-    
-    if (conferma) {
-        try {
-            // Aggiorniamo lo stato su Firebase a "finished"
-            // Questo attiverà l'alert "Partita terminata!" in listenToGame() per tutti i player
-            await updateDoc(doc(db, "games", currentRoom), {
-                status: "finished"
-            });
-
-            // Pulizia locale
-            localStorage.removeItem('activeRoom');
-            localStorage.removeItem(`cards_${currentRoom}`);
-            
-            // Ricarica per tornare al menu
-            location.reload();
-        } catch (e) {
-            console.error("Errore durante la chiusura della stanza:", e);
-            alert("Non è stato possibile chiudere la stanza sul server.");
-        }
-    }
-};

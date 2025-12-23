@@ -13,10 +13,9 @@
             <div class="winner-modal">
                 <div class="trophy">🏆</div>
                 <h2 id="win-title">TOMBOLA!</h2>
-                <p id="win-names">Giocatore 1</p>
+                <div id="win-names"></div>
                 <button onclick="document.getElementById('winner-overlay').classList.add('hidden')">Chiudi</button>
             </div>
-            <div class="confetti-container"></div>
         </div>
 
         <section id="screen-auth" class="fade-in">
@@ -38,9 +37,16 @@
             </header>
             
             <div class="menu-actions">
-                <button id="btn-create" class="btn-secondary">
-                    <span class="material-icons-round">add_circle</span> Crea Nuova Stanza
-                </button>
+                <div class="join-box create-box">
+                    <h3>Crea Nuova Stanza</h3>
+                    <div class="input-group">
+                        <label class="input-label">Costo Cartella (€):</label>
+                        <input type="number" id="input-cost" value="1.00" step="0.50" min="0.50">
+                    </div>
+                    <button id="btn-create" class="btn-secondary">
+                        <span class="material-icons-round">add_circle</span> Crea Stanza
+                    </button>
+                </div>
                 
                 <div class="separator"><span>OPPURE</span></div>
                 
@@ -80,7 +86,11 @@
                 </div>
 
                 <div id="board-area">
-                    <h3>Tabellone (Gioca per l'Host)</h3>
+                    <div class="prize-pool-display">
+                        <div class="pot-header">Montepremi Totale: <span id="total-pot">€0.00</span></div>
+                        <div id="prizes-list" class="prizes-grid"></div>
+                    </div>
+                    <h3>Tabellone</h3>
                     <div id="main-board-grid"></div>
                 </div>
             </div>
@@ -91,7 +101,6 @@
             </footer>
         </section>
     </div>
-    
     <script type="module" src="app.js"></script>
 </body>
 </html>
