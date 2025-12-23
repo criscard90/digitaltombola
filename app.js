@@ -141,6 +141,9 @@ function animateExtraction(finalNumber) {
     return new Promise(resolve => {
         const el = document.getElementById('last-number');
         el.classList.add('rolling');
+        // Play extraction sound (add extract.mp3 to project root)
+        const extractSound = new Audio('extract.mp3');
+        extractSound.play();
         let count = 0;
         const max = 15;
         const interval = setInterval(() => {
@@ -150,6 +153,9 @@ function animateExtraction(finalNumber) {
                 clearInterval(interval);
                 el.innerText = finalNumber;
                 el.classList.remove('rolling');
+                // Play final number sound (add final.mp3 to project root)
+                const finalSound = new Audio('final.mp3');
+                finalSound.play();
                 resolve();
             }
         }, 80);
@@ -213,13 +219,17 @@ function showWinnerOverlay(prize, winnersList, amount) {
     if(lastWinnerKey === currentKey) return;
     lastWinnerKey = currentKey;
 
+    // Play victory sound (add win.mp3 to project root)
+    const winSound = new Audio('win.mp3');
+    winSound.play();
+
     const overlay = document.getElementById('winner-overlay');
     document.getElementById('win-title').innerText = prize.toUpperCase() + "!";
     document.getElementById('win-names').innerHTML = `
         <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 10px;">Vinti €${amount}!</div>
         <small>Vincitori: ${winnersList.join(", ")}</small>
     `;
-    
+
     overlay.classList.remove('hidden');
     setTimeout(() => { overlay.classList.add('hidden'); }, 7000);
 }
