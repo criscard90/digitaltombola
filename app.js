@@ -109,6 +109,43 @@ function initBoard() {
     });
 }
 
+function addBlockToggles(data) {
+    const container = document.createElement('div');
+    container.id = 'block-toggles';
+    container.innerHTML = '<h4>Cartelle Attive:</h4>';
+    for(let i=0; i<6; i++) {
+        const label = document.createElement('label');
+        label.innerHTML = `<input type="checkbox" data-block="${i}" ${data.activeBlocks.includes(i) ? 'checked' : ''}> Cartella ${i+1}`;
+        container.appendChild(label);
+    }
+    document.getElementById('main-board-grid').after(container);
+    // Add listeners
+    container.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', async () => {
+            const blockIdx = parseInt(input.getAttribute('data-block'));
+            const snap = await getDoc(doc(db, "games", currentRoom));
+            let activeBlocks = snap.data().activeBlocks || [];
+            if(input.checked) {
+                if(!activeBlocks.includes(blockIdx)) activeBlocks.push(blockIdx);
+            } else {
+                activeBlocks = activeBlocks.filter(b => b !== blockIdx);
+            }
+            // Recalculate totalCardsSold = activeBlocks.length + sum players cards
+            const players = snap.data().players || [];
+            const playerCards = players.reduce((sum, p) => sum + (p.cards || 0), 0);
+            const newTotal = activeBlocks.length + playerCards;
+            await updateDoc(doc(db, "games", currentRoom), { activeBlocks, totalCardsSold: newTotal });
+        });
+    });
+}
+
+function updateBlockToggles(activeBlocks) {
+    const toggles = document.querySelectorAll('#block-toggles input');
+    toggles.forEach((input, i) => {
+        input.checked = activeBlocks.includes(i);
+    });
+}
+
 function listenToGame() {
     onSnapshot(doc(db, "games", currentRoom), async (snap) => {
         const data = snap.data();
@@ -134,6 +171,7 @@ function listenToGame() {
 
         handlePrizes(data);
         updatePlayersList(data.players || []);
+        if(isHost) updateBlockToggles(data.activeBlocks || []);
     });
 }
 
@@ -185,7 +223,7 @@ async function handlePrizes(data) {
         if(checkCardWin(c, prizeGoal)) won = true;
     });
 
-    if(isHost && checkBoardWins(data.drawn || [], prizeGoal) && !winners.includes("TABELLONE")) {
+    if(isHost && checkBoardWins(data.drawn || [], prizeGoal, data.activeBlocks || []) && !winners.includes("TABELLONE")) {
         await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion("TABELLONE") });
     }
 
@@ -266,8 +304,10 @@ function checkCardWin(card, targetPrize) {
     return maxHitsInRow >= targets[targetPrize];
 }
 
-function checkBoardWins(drawn, targetPrize) {
-    for(let block of BOARD_BLOCKS) {
+function checkBoardWins(drawn, targetPrize, activeBlocks) {
+    for(let idx of activeBlocks) {
+        const block = BOARD_BLOCKS[idx];
+        if(!block) continue;
         const hits = block.filter(n => drawn.includes(n)).length;
         const rows = [block.slice(0,5), block.slice(5,10), block.slice(10,15)];
         let maxR = 0;
@@ -289,7 +329,7 @@ document.getElementById('btn-create').addEventListener('click', async () => {
     await setDoc(doc(db, "games", rID), {
         host: auth.currentUser.uid, drawn: [], status: "playing",
         winners: { ambo:[], terna:[], quaterna:[], cinquina:[], tombola:[] },
-        currentPrizeIndex: 0, cardCost: cost, totalCardsSold: 6, players: [{name: auth.currentUser.displayName, cards: 6}]  // Il tabellone ha 6 cartelle, il host paga per loro
+        currentPrizeIndex: 0, cardCost: cost, activeBlocks: [0,1,2,3,4,5], totalCardsSold: 6, players: [{name: auth.currentUser.displayName, cards: 6}]  // Il tabellone ha 6 cartelle, il host paga per quelle attive
     });
     joinGame(rID, 0);
 });
@@ -359,6 +399,10 @@ async function joinGame(rID, qty, isResume = false) {
     }
 
     initBoard();
+    if(isHost) {
+        const data = snap.data();
+        addBlockToggles(data);
+    }
     document.getElementById('display-room').innerText = rID;
     showScreen('screen-game');
     listenToGame();
