@@ -145,7 +145,7 @@ function animateExtraction(finalNumber) {
         const extractSound = new Audio('extract.mp3');
         extractSound.play();
         let count = 0;
-        const max = 15;
+        const max = 63; // 5 seconds at 80ms intervals
         const interval = setInterval(() => {
             el.innerText = Math.floor(Math.random() * 90) + 1;
             count++;
