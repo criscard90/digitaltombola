@@ -171,7 +171,6 @@ function listenToGame() {
 
         handlePrizes(data);
         updatePlayersList(data.players || []);
-        if(isHost) updateBlockToggles(data.activeBlocks || []);
     });
 }
 
@@ -323,16 +322,39 @@ function checkBoardWins(drawn, targetPrize, activeBlocks) {
 }
 
 // --- AZIONI ---
-document.getElementById('btn-create').addEventListener('click', async () => {
+document.getElementById('btn-create').addEventListener('click', () => {
     const cost = parseFloat(document.getElementById('input-cost').value) || 1.0;
-    const rID = Math.floor(1000 + Math.random() * 9000).toString();
-    await setDoc(doc(db, "games", rID), {
-        host: auth.currentUser.uid, drawn: [], status: "playing",
-        winners: { ambo:[], terna:[], quaterna:[], cinquina:[], tombola:[] },
-        currentPrizeIndex: 0, cardCost: cost, activeBlocks: [0,1,2,3,4,5], totalCardsSold: 6, players: [{name: auth.currentUser.displayName, cards: 6}]  // Il tabellone ha 6 cartelle, il host paga per quelle attive
-    });
-    joinGame(rID, 0);
+    showBlockSelectionModal(cost);
 });
+
+async function showBlockSelectionModal(cost) {
+    const modal = document.createElement('div');
+    modal.id = 'block-selection-modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h3>Seleziona le cartelle attive</h3>
+            <div id="block-checks">
+                ${[1,2,3,4,5,6].map(i => `<label><input type="checkbox" data-block="${i-1}" checked> Cartella ${i}</label>`).join('')}
+            </div>
+            <button id="btn-start-game">Inizia Partita</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.classList.add('modal-overlay');
+    modal.style.display = 'flex';
+
+    document.getElementById('btn-start-game').addEventListener('click', async () => {
+        const activeBlocks = Array.from(document.querySelectorAll('#block-checks input:checked')).map(cb => parseInt(cb.getAttribute('data-block')));
+        const rID = Math.floor(1000 + Math.random() * 9000).toString();
+        await setDoc(doc(db, "games", rID), {
+            host: auth.currentUser.uid, drawn: [], status: "playing",
+            winners: { ambo:[], terna:[], quaterna:[], cinquina:[], tombola:[] },
+            currentPrizeIndex: 0, cardCost: cost, activeBlocks, totalCardsSold: activeBlocks.length, players: [{name: auth.currentUser.displayName, cards: activeBlocks.length}]  // Il tabellone ha cartelle attive, il host paga per quelle
+        });
+        modal.remove();
+        joinGame(rID, 0);
+    });
+}
 
 async function joinGame(rID, qty, isResume = false) {
     if(!rID) return;
@@ -399,10 +421,6 @@ async function joinGame(rID, qty, isResume = false) {
     }
 
     initBoard();
-    if(isHost) {
-        const data = snap.data();
-        addBlockToggles(data);
-    }
     document.getElementById('display-room').innerText = rID;
     showScreen('screen-game');
     listenToGame();
