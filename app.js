@@ -171,6 +171,7 @@ function listenToGame() {
 
         handlePrizes(data);
         updatePlayersList(data.players || []);
+        highlightActiveBlocks(data.activeBlocks || []);
     });
 }
 
@@ -334,7 +335,17 @@ async function showBlockSelectionModal(cost) {
         <div class="modal-content">
             <h3>Seleziona le cartelle attive</h3>
             <div id="block-checks">
-                ${[1,2,3,4,5,6].map(i => `<label><input type="checkbox" data-block="${i-1}" checked> Cartella ${i}</label>`).join('')}
+                ${BOARD_BLOCKS.map((block, i) => `
+                    <div class="block-preview">
+                        <label>
+                            <input type="checkbox" data-block="${i}" checked>
+                            <span>Cartella ${i+1}</span>
+                        </label>
+                        <div class="mini-board">
+                            ${block.map(num => `<div class="mini-cell">${num}</div>`).join('')}
+                        </div>
+                    </div>
+                `).join('')}
             </div>
             <button id="btn-start-game">Inizia Partita</button>
         </div>
@@ -424,6 +435,16 @@ async function joinGame(rID, qty, isResume = false) {
     document.getElementById('display-room').innerText = rID;
     showScreen('screen-game');
     listenToGame();
+}
+
+function highlightActiveBlocks(activeBlocks) {
+    document.querySelectorAll('.board-card-block').forEach((block, i) => {
+        if(activeBlocks.includes(i)) {
+            block.classList.add('active');
+        } else {
+            block.classList.remove('active');
+        }
+    });
 }
 
 document.getElementById('btn-login').addEventListener('click', () => signInWithPopup(auth, provider));
