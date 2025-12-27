@@ -276,8 +276,8 @@ async function handlePrizes(data) {
         if(checkCardWin(c, prizeGoal)) won = true;
     });
 
-    if(isHost && checkBoardWins(data.drawn || [], prizeGoal, data.activeBlocks || []) && !winners.includes("TABELLONE")) {
-        await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion("TABELLONE") });
+    if(isHost && checkBoardWins(data.drawn || [], prizeGoal, data.activeBlocks || []) && !winners.includes(auth.currentUser.displayName)) {
+        await updateDoc(doc(db, "games", currentRoom), { [`winners.${prizeGoal}`]: arrayUnion(auth.currentUser.displayName) });
     }
 
     if(won && !winners.includes(auth.currentUser.displayName)) {
