@@ -265,8 +265,10 @@ async function handlePrizes(data) {
     const idx = data.currentPrizeIndex ?? 0;
     const prizeGoal = PRIZE_ORDER[idx];
     const winners = data.winners[prizeGoal] || [];
-    
-    const totalPrizeVal = totalPot * PRIZE_PERCENTAGES[prizeGoal];
+
+    // Usa gli importi calcolati (arrotondati) invece delle percentuali teoriche
+    const prizeAmounts = calculatePrizeAmounts(totalPot);
+    const totalPrizeVal = prizeAmounts[prizeGoal];
     const individualWin = winners.length > 0 ? (totalPrizeVal / winners.length).toFixed(2) : totalPrizeVal.toFixed(2);
 
     let won = false;
