@@ -22,8 +22,8 @@ let isHost = false;
 let lastDrawnLength = 0;
 let lastWinnerKey = "";
 
-const PRIZE_ORDER = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola'];
-const PRIZE_PERCENTAGES = { ambo: 0.1, terna: 0.15, quaterna: 0.2, cinquina: 0.25, tombola: 0.3 };
+const PRIZE_ORDER = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola', 'tombolino'];
+const PRIZE_PERCENTAGES = { ambo: 0.08, terna: 0.12, quaterna: 0.16, cinquina: 0.20, tombola: 0.24, tombolino: 0.2 };
 
 const BOARD_BLOCKS = [
     [1,2,3,4,5, 11,12,13,14,15, 21,22,23,24,25],
@@ -70,8 +70,11 @@ function updatePrizeUI(data) {
     if (!container) return;
     container.innerHTML = '';
 
+    // Calcola importi arrotondati a multipli di 0.10 mantenendo il totale
+    const prizeAmounts = calculatePrizeAmounts(totalPot);
+
     PRIZE_ORDER.forEach((p, i) => {
-        const val = (totalPot * PRIZE_PERCENTAGES[p]).toFixed(2);
+        const val = prizeAmounts[p].toFixed(2);
         const div = document.createElement('div');
         div.className = `prize-item ${data.currentPrizeIndex === i ? 'active' : ''}`;
         div.innerHTML = `<label>${p}</label><span>€${val}</span>`;
@@ -79,15 +82,63 @@ function updatePrizeUI(data) {
     });
 }
 
+function calculatePrizeAmounts(totalPot) {
+    const amounts = {};
+    let remainingPot = totalPot;
+
+    // Calcola importi per tutti i premi tranne l'ultimo
+    for (let i = 0; i < PRIZE_ORDER.length - 1; i++) {
+        const prize = PRIZE_ORDER[i];
+        const theoretical = totalPot * PRIZE_PERCENTAGES[prize];
+        // Arrotonda al multiplo di 0.10 più vicino
+        amounts[prize] = Math.round(theoretical * 10) / 10;
+        remainingPot -= amounts[prize];
+    }
+
+    // L'ultimo premio prende il rimanente per mantenere il totale esatto
+    const lastPrize = PRIZE_ORDER[PRIZE_ORDER.length - 1];
+    amounts[lastPrize] = Math.round(remainingPot * 10) / 10;
+
+    return amounts;
+}
+
 function updatePlayersList(players) {
     const container = document.getElementById('players-list');
     container.innerHTML = '<h4>Giocatori:</h4>';
-    players.forEach(p => {
-        const div = document.createElement('div');
-        div.className = 'player-item';
-        div.innerHTML = `${p.name} <span>(${p.cards} cartelle)</span>`;
-        container.appendChild(div);
+
+    // Ottieni i dati della stanza per calcolare le vincite
+    getDoc(doc(db, "games", currentRoom)).then(snap => {
+        const gameData = snap.data();
+        const totalPot = (gameData.cardCost || 0) * (gameData.totalCardsSold || 0);
+        const prizeAmounts = calculatePrizeAmounts(totalPot);
+
+        players.forEach(p => {
+            const totalWon = calculatePlayerTotalWon(p.name, gameData.winners || {}, prizeAmounts);
+            const div = document.createElement('div');
+            div.className = 'player-item';
+            div.innerHTML = `${p.name} <span>(${p.cards} cartelle) - Vincite: €${totalWon.toFixed(2)}</span>`;
+            container.appendChild(div);
+        });
+    }).catch(err => {
+        // Fallback senza vincite
+        players.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'player-item';
+            div.innerHTML = `${p.name} <span>(${p.cards} cartelle)</span>`;
+            container.appendChild(div);
+        });
     });
+}
+
+function calculatePlayerTotalWon(playerName, winners, prizeAmounts) {
+    let total = 0;
+    PRIZE_ORDER.forEach(prize => {
+        const prizeWinners = winners[prize] || [];
+        if (prizeWinners.includes(playerName)) {
+            total += prizeAmounts[prize] / prizeWinners.length;
+        }
+    });
+    return total;
 }
 
 // --- LOGICA DI GIOCO ---
@@ -238,13 +289,16 @@ async function handlePrizes(data) {
         
         showWinnerOverlay(prizeGoal, winners, individualWin);
 
-        if(isHost && idx < 4) {
+        if(isHost && idx < 5) {
              setTimeout(async () => {
                  const snapCheck = await getDoc(doc(db, "games", currentRoom));
                  if(snapCheck.data().currentPrizeIndex === idx) {
                      await updateDoc(doc(db, "games", currentRoom), { currentPrizeIndex: idx + 1 });
                  }
              }, 8000);
+        } else if(isHost && idx === 5 && prizeGoal === 'tombolino' && winners.length > 0) {
+            // Fine partita - mostra classificone
+            setTimeout(() => showFinalClassificone(data), 8000);
         }
     } else {
         pAnnouncer.innerHTML = `In palio: €${totalPrizeVal.toFixed(2)} (${prizeGoal.toUpperCase()})`;
@@ -270,6 +324,61 @@ function showWinnerOverlay(prize, winnersList, amount) {
 
     overlay.classList.remove('hidden');
     setTimeout(() => { overlay.classList.add('hidden'); }, 7000);
+}
+
+function showFinalClassificone(data) {
+    const totalPot = (data.cardCost || 0) * (data.totalCardsSold || 0);
+    const prizeAmounts = calculatePrizeAmounts(totalPot);
+
+    // Crea lista completa dei giocatori con i totali vinti
+    const players = data.players || [];
+    const playerStats = players.map(p => ({
+        name: p.name,
+        totalWon: calculatePlayerTotalWon(p.name, data.winners || {}, prizeAmounts)
+    }));
+
+    // Ordina per importo vinto (decrescente)
+    playerStats.sort((a, b) => b.totalWon - a.totalWon);
+
+    // Crea HTML per il classificone
+    let classificoneHTML = `
+        <h2 style="color: #fbbf24; margin-bottom: 20px;">🏆 CLASSIFICONE FINALE 🏆</h2>
+        <div style="text-align: left; margin-bottom: 20px;">
+    `;
+
+    playerStats.forEach((player, index) => {
+        const position = index + 1;
+        const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : '🏅';
+        classificoneHTML += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <span>${medal} ${position}° ${player.name}</span>
+                <span style="font-weight: bold; color: #fbbf24;">€${player.totalWon.toFixed(2)}</span>
+            </div>
+        `;
+    });
+
+    classificoneHTML += `
+        </div>
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+            <p style="margin: 0; font-size: 0.9rem; color: #94a3b8;">Montepremi totale distribuito: €${totalPot.toFixed(2)}</p>
+        </div>
+    `;
+
+    // Mostra overlay con classificone e pulsante "Chiudi"
+    const overlay = document.getElementById('winner-overlay');
+    document.getElementById('win-title').innerText = "PARTITA TERMINATA!";
+    document.getElementById('win-names').innerHTML = classificoneHTML;
+
+    // Cambia il pulsante per chiudere definitivamente
+    const closeBtn = document.querySelector('#winner-overlay button');
+    closeBtn.innerText = "Chiudi Stanza";
+    closeBtn.onclick = async () => {
+        await updateDoc(doc(db, "games", currentRoom), { status: "finished" });
+        location.reload();
+    };
+
+    overlay.classList.remove('hidden');
+    // Non auto-hide per il classificone
 }
 
 // --- CARTELLE ---
@@ -359,7 +468,7 @@ async function showBlockSelectionModal(cost) {
         const rID = Math.floor(1000 + Math.random() * 9000).toString();
         await setDoc(doc(db, "games", rID), {
             host: auth.currentUser.uid, drawn: [], status: "playing",
-            winners: { ambo:[], terna:[], quaterna:[], cinquina:[], tombola:[] },
+            winners: { ambo:[], terna:[], quaterna:[], cinquina:[], tombola:[], tombolino:[] },
             currentPrizeIndex: 0, cardCost: cost, activeBlocks, totalCardsSold: activeBlocks.length, players: [{name: auth.currentUser.displayName, cards: activeBlocks.length}]  // Il tabellone ha cartelle attive, il host paga per quelle
         });
         modal.remove();
