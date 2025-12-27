@@ -21,6 +21,7 @@ let currentRoom = null;
 let isHost = false;
 let lastDrawnLength = 0;
 let lastWinnerKey = "";
+let isUpdatingPlayersList = false;
 
 const PRIZE_ORDER = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola', 'tombolino'];
 const PRIZE_PERCENTAGES = { ambo: 0.08, terna: 0.12, quaterna: 0.16, cinquina: 0.20, tombola: 0.24, tombolino: 0.2 };
@@ -103,6 +104,9 @@ function calculatePrizeAmounts(totalPot) {
 }
 
 function updatePlayersList(players) {
+    if (isUpdatingPlayersList) return;
+    isUpdatingPlayersList = true;
+
     const container = document.getElementById('players-list');
     container.innerHTML = '<h4>Giocatori:</h4>';
 
@@ -119,6 +123,8 @@ function updatePlayersList(players) {
             div.innerHTML = `${p.name} <span>(${p.cards} cartelle) - Vincite: €${totalWon.toFixed(2)}</span>`;
             container.appendChild(div);
         });
+
+        isUpdatingPlayersList = false;
     }).catch(err => {
         // Fallback senza vincite
         players.forEach(p => {
@@ -127,6 +133,7 @@ function updatePlayersList(players) {
             div.innerHTML = `${p.name} <span>(${p.cards} cartelle)</span>`;
             container.appendChild(div);
         });
+        isUpdatingPlayersList = false;
     });
 }
 
@@ -416,6 +423,19 @@ function checkCardWin(card, targetPrize) {
 }
 
 function checkBoardWins(drawn, targetPrize, activeBlocks) {
+    if (targetPrize === 'tombolino') {
+        // Per tombolino, controlla se almeno 2 cartelle sono complete (tombola)
+        let completeCards = 0;
+        for(let idx of activeBlocks) {
+            const block = BOARD_BLOCKS[idx];
+            if(!block) continue;
+            const hits = block.filter(n => drawn.includes(n)).length;
+            if (hits === 15) completeCards++;
+        }
+        return completeCards >= 2;
+    }
+
+    // Per altri premi, controlla se almeno una cartella soddisfa la condizione
     for(let idx of activeBlocks) {
         const block = BOARD_BLOCKS[idx];
         if(!block) continue;
